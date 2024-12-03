@@ -1,0 +1,49 @@
+spring:
+  mailing:
+    frontend:
+      activation-url: http://localhost:4200/activate-account
+  servlet:
+    multipart:
+      max-file-size: 10MB
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ZenFin
+    username: postgres
+    password: Venom07%
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database: postgresql
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+  mail:
+    host: mail-dev-bsn
+    port: 1025
+    properties:
+      smtp:
+        trust:"*"
+      auth: false
+      starttls:
+        enable: false
+      connectiontimeout: 5000
+      timeout: 3000
+      writetimeout: 5000
+
+application:
+  security:
+    jwt:
+      secrete-key: e2d08eb5479b55c80e537500b03fc20a38f7386d87594a186d41f0fecf555919
+      expiration: 8640000
+
+springdoc:
+  default-produces-media-type: application/json
+
+  server:
+    servlet:
+      context-path: /api/v1/
+
+server:
+  port: 8088
