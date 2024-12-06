@@ -1,5 +1,7 @@
 package com.ZenFin.auth;
 
+import com.ZenFin.user.UserRegistrationDTO;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -17,12 +19,20 @@ public class AuthenticationController {
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ResponseEntity<?> registration(
+    public ResponseEntity<RegistrationResponse> registration(
             @RequestBody
             @Valid
             RegistrationRequest registration
-    ){
+    ) throws MessagingException {
         service.register(registration);
-        return ResponseEntity.ok("Registration Successful");
+
+        var userResponse = UserRegistrationDTO.builder()
+                .fullName(registration.getFirstname()+" "+registration.getLastname())
+                .email(registration.getEmail())
+                .build();
+        return ResponseEntity.ok(RegistrationResponse.builder()
+                        .message("Registration successful! Please verify your email.")
+                        .userRegistrationDTO(userResponse)
+                        .build());
     }
 }

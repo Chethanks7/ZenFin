@@ -4,8 +4,8 @@ services:
      image: postgres
 
      environment:
-       POSTGRES_USER: chethan_gowda
-       POSTGRES_PASSWORD: purva@1927
+       POSTGRES_USER: postgres
+       POSTGRES_PASSWORD: Venom07%
        GDATA: /var/lib/postgresql/data
        POSTGRES_DB: ZenFIn_DB
      volumes:
@@ -15,12 +15,7 @@ services:
      networks:
       - spring-demo
      restart: unless-stopped
-   mail-dev:
-     container_name: mail-dev-ZF
-     image: maildev/maildev
-     ports:
-       - 1080-1080
-       - 1025:1025
+
 
 networks:
   spring-demo:

@@ -4,7 +4,9 @@ import com.ZenFin.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -24,6 +26,7 @@ import java.util.stream.Collectors;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
+@Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
 public class User implements UserDetails, UserPrincipal {
 
@@ -37,24 +40,21 @@ public class User implements UserDetails, UserPrincipal {
     @Column(nullable = false)
     private String lastName;
 
-    @Column(nullable = false)
-    private String name;
-
     @Column(nullable = false, unique = true)
     private String email;
 
     @Column(nullable = false)
     private String password;
 
-    @Column(nullable = false )
+    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
     private List<Role> roles;
 
     @Column(nullable = false,updatable = false)
-    @CreatedBy
+    @CreatedDate
     private LocalDateTime createdAt;
 
     @Column(nullable = false)
-    @LastModifiedBy
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 
     private boolean accountLocked;
@@ -78,6 +78,10 @@ public class User implements UserDetails, UserPrincipal {
     private String securityQuestion;
 
     private String securityAnswer;
+
+    public String fullName() {
+        return firstName + " " + lastName;
+    }
 
 
     @Override
@@ -113,4 +117,8 @@ public class User implements UserDetails, UserPrincipal {
         return isEnabled;
     }
 
+    @Override
+    public String getName() {
+        return fullName();
+    }
 }

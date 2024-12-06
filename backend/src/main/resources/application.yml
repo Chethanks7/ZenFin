@@ -1,7 +1,7 @@
 spring:
   mailing:
     frontend:
-      activation-url: http://localhost:4200/activate-account
+      activation-url: http://www.ZenFin.com/activate-account
   servlet:
     multipart:
       max-file-size: 10MB
@@ -20,17 +20,19 @@ spring:
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
   mail:
-    host: mail-dev-bsn
-    port: 1025
+    host: smtp.gmail.com
+    port: 587
+    username: chethanks340@gmail.com
+    password: zegb cjqw gfbn cpix
     properties:
-      smtp:
-        trust:"*"
-      auth: false
-      starttls:
-        enable: false
-      connectiontimeout: 5000
-      timeout: 3000
-      writetimeout: 5000
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          connectiontimeout: 5000
+          timeout: 3000
+          writetimeout: 5000
 
 application:
   security:
@@ -41,9 +43,9 @@ application:
 springdoc:
   default-produces-media-type: application/json
 
-  server:
-    servlet:
-      context-path: /api/v1/
-
 server:
+  servlet:
+    context-path: /api/v1
   port: 8088
+
+
