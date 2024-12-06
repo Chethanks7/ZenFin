@@ -21,7 +21,7 @@ import java.util.function.Function;
 @RequiredArgsConstructor
 public class JwtService {
     @Value("${application.security.jwt.secrete-key}")
-    private String secreteKey;
+    private static String SECRET_KEY;
 
     @Value("${application.security.jwt.expiration}")
     private Long jwtExpiration;
@@ -90,7 +90,7 @@ public class JwtService {
 
     private Key getSignInKey() {
         // Decodes the base64 encoded secret key and returns it as a Key object.
-        byte[] bytes = Decoders.BASE64.decode(secreteKey);
+        byte[] bytes = Decoders.BASE64.decode(SECRET_KEY);
         return Keys.hmacShaKeyFor(bytes); // Creates an HMAC signing key for signing the JWT.
     }
 }

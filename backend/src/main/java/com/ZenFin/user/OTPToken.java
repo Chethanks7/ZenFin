@@ -25,9 +25,9 @@ public class OTPToken {
 
     private LocalDateTime createTime;
 
-    private LocalDateTime modifyTime;
-
     private LocalDateTime expireTime;
+
+    private Byte noOfAttempts;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false, targetEntity = User.class, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "user_id", nullable = false)

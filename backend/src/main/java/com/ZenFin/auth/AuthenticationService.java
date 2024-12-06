@@ -12,6 +12,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
@@ -29,6 +30,8 @@ public class AuthenticationService {
     private final EmailService emailService;
     @Value("${spring.mail.port}")
     private int port ;
+
+
 
     @Value("${spring.mailing.frontend.activation-url}")
     private String activationUrl;
@@ -70,12 +73,21 @@ public class AuthenticationService {
     private String generateAndSaveNewOtp(User user) {
         String otp = generateOtp();
 
+        //here before storing opt to the database, should be encrypted
+
+        String encryptedOtp = BCrypt.hashpw(otp, BCrypt.gensalt());
+
+
         var otpToken = OTPToken.builder()
                 .otp(otp)
                 .user(user)
                 .createTime(LocalDateTime.now())
                 .expireTime(LocalDateTime.now().plusMinutes(15))
                 .build();
+
+
+
+
 
         otpTokenRepository.save(otpToken);
         return otp;
