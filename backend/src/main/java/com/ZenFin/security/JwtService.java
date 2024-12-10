@@ -10,6 +10,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -20,22 +21,23 @@ import java.util.function.Function;
 @Service
 @RequiredArgsConstructor
 public class JwtService {
-    @Value("${application.security.jwt.secrete-key}")
-    private static String SECRET_KEY;
+
 
     @Value("${application.security.jwt.expiration}")
     private Long jwtExpiration;
 
+    private final EncryptionKey encryptionKey;
 
-    public String generateToken(UserDetails userDetails) {
+
+    public String generateToken(UserDetails userDetails) throws IOException {
         return generateToken(new HashMap<String, Object>(), userDetails); // Generates a token with no additional claims.
     }
 
-    public String generateToken(Map<String, Object> claims, UserDetails userDetails) {
+    public String generateToken(Map<String, Object> claims, UserDetails userDetails) throws IOException {
         return buildToken(claims, userDetails, jwtExpiration); // Builds and returns the jwt token with the specified claims and expiration.
     }
 
-    private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long jwtExpiration) {
+    private String buildToken(Map<String, Object> extraClaims, UserDetails userDetails, long jwtExpiration) throws IOException {
         // Maps user authorities to a list for inclusion in the token.
         var authorities = userDetails
                 .getAuthorities()
@@ -56,17 +58,17 @@ public class JwtService {
 
 
 
-    public String extractUsername(String token) {
+    public String extractUsername(String token) throws IOException {
         return extractClaim(token, (Claims::getSubject));
     }
 
 
-    public <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
+    public <T> T extractClaim(String token, Function<Claims, T> claimResolver) throws IOException {
         Claims claims = extractClaims(token);
         return claimResolver.apply(claims);
     }
 
-    private Claims extractClaims(String token) {
+    private Claims extractClaims(String token) throws IOException {
         return Jwts.parserBuilder()
                 .setSigningKey(getSignInKey())
                 .build()
@@ -75,22 +77,22 @@ public class JwtService {
     }
 
 
-    public boolean isTokenValid(String token, UserDetails userDetails) {
+    public boolean isTokenValid(String token, UserDetails userDetails) throws IOException {
         String username = extractUsername(token);
         return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
     }
 
-    private boolean isTokenExpired(String token) {
+    private boolean isTokenExpired(String token) throws IOException {
         return extractExpiration(token).before(new Date());
     }
 
-    private Date extractExpiration(String token) {
+    private Date extractExpiration(String token) throws IOException {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    private Key getSignInKey() {
+    public Key getSignInKey() throws IOException {
         // Decodes the base64 encoded secret key and returns it as a Key object.
-        byte[] bytes = Decoders.BASE64.decode(SECRET_KEY);
+        byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey("secretmanager.googleapis.com","driven-origin-443911-r0"));
         return Keys.hmacShaKeyFor(bytes); // Creates an HMAC signing key for signing the JWT.
     }
 }
