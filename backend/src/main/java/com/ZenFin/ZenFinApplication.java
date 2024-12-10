@@ -9,27 +9,26 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-import java.time.LocalDateTime;
-
 @SpringBootApplication
 @EnableJpaAuditing
 @EnableJpaRepositories
 public class ZenFinApplication {
 
-	public static void main(String[] args) {
+    public static void main(String[] args) throws Exception {
 
-		SpringApplication.run(ZenFinApplication.class, args);
-	}
-	@Bean
-	public CommandLineRunner runner(RoleRepository roleRepository) {
-		return args -> {
-			if (roleRepository.findByName("USER").isEmpty()) {
-				roleRepository.save(Role
-						.builder()
-						.name("USER")
-						.build());
-			}
-		};
-	}
+        SpringApplication.run(ZenFinApplication.class, args);
+    }
+
+    @Bean
+    public CommandLineRunner runner(RoleRepository roleRepository) {
+        return args -> {
+            if (roleRepository.findByName("USER").isEmpty()) {
+                roleRepository.save(Role
+                        .builder()
+                        .name("USER")
+                        .build());
+            }
+        };
+    }
 
 }
