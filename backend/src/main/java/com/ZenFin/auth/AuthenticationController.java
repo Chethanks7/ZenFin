@@ -1,7 +1,6 @@
 package com.ZenFin.auth;
 
 import com.ZenFin.user.UserRegistrationDTO;
-import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,7 +22,7 @@ public class AuthenticationController {
             @RequestBody
             @Valid
             RegistrationRequest registration
-    ) throws MessagingException {
+    ) throws Exception {
         service.register(registration);
 
         var userResponse = UserRegistrationDTO.builder()
