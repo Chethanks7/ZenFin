@@ -2,6 +2,7 @@ package com.ZenFin.security;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +26,9 @@ public class JwtService {
 
     @Value("${application.security.jwt.expiration}")
     private Long jwtExpiration;
+
+    @Value("${application.security.secreteId}")
+    private String secretID;
 
     private final EncryptionKey encryptionKey;
 
@@ -92,7 +96,7 @@ public class JwtService {
 
     public Key getSignInKey() throws IOException {
         // Decodes the base64 encoded secret key and returns it as a Key object.
-        byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey("secretmanager.googleapis.com","driven-origin-443911-r0"));
-        return Keys.hmacShaKeyFor(bytes); // Creates an HMAC signing key for signing the JWT.
+        byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey(secretID));
+        return Keys.secretKeyFor(SignatureAlgorithm.valueOf("AES")); // Creates an HMAC signing key for signing the JWT.
     }
 }

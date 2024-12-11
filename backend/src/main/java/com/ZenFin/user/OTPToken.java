@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import javax.crypto.spec.IvParameterSpec;
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,10 +22,16 @@ public class OTPToken {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
+    @Column(nullable = false)
     private String otp;
 
+    @Column(nullable = false)
     private LocalDateTime createTime;
 
+    @Column(nullable = false)
+    private String ivParameterSpec;
+
+    @Column(nullable = false)
     private LocalDateTime expireTime;
 
     private Byte noOfAttempts;

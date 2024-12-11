@@ -3,6 +3,7 @@ package com.ZenFin.auth;
 import com.ZenFin.email.EmailService;
 import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.role.RoleRepository;
+import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
 import com.ZenFin.user.OTPToken;
 import com.ZenFin.user.OTPTokenRepository;
@@ -18,6 +19,8 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.IOException;
 import java.security.Key;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -34,6 +37,10 @@ public class AuthenticationService {
     private final OTPTokenRepository otpTokenRepository;
     private final EmailService emailService;
     private final JwtService jwtService;
+    private final EncryptionKey encryptionKey;
+
+    @Value("${application.security.secreteId}")
+    private String secretID;
     @Value("${spring.mail.port}")
     private int port ;
 
@@ -78,9 +85,16 @@ public class AuthenticationService {
 
 
     public IvParameterSpec generateIv(){
-        byte[] iv = new byte[16];
-        new SecureRandom().nextBytes(iv);
-        return new IvParameterSpec(iv);
+        byte[] keyBytes = new byte[16]; // For 128-bit AES
+        new SecureRandom().nextBytes(keyBytes);
+        return new IvParameterSpec(keyBytes);
+
+    }
+
+    public SecretKey generateKey() throws Exception {
+        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+        keyGen.init(256); // 256-bit AES key
+        return keyGen.generateKey();
     }
 
     public String encryptedOtp(String otp, Key key , IvParameterSpec iv) throws Exception {
@@ -90,18 +104,24 @@ public class AuthenticationService {
         return Base64.getEncoder().encodeToString(encryptedOtp);
     }
 
-    public SecretKey generateKey() throws Exception {
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(256); // Use 256 bits for strong encryption
-        return keyGen.generateKey();
+    public Key getKey() throws IOException {
+        String base64EncodedKey = encryptionKey.getEncryptionKey(secretID);
+        byte[] keyBytes = Base64.getDecoder().decode(base64EncodedKey);
+        return new SecretKeySpec(keyBytes, "AES");
     }
+
 
     private String generateAndSaveNewOtp(User user) throws Exception {
         String otp = generateOtp();
 
+
         //here before storing opt to the database, should be encrypted
+
         var otpToken = OTPToken.builder()
-                .otp(encryptedOtp(otp,generateKey(),generateIv()))
+                .otp(encryptedOtp(otp,
+                        getKey()
+                        ,generateIv()))
+                .ivParameterSpec(Base64.getEncoder().encodeToString(generateIv().getIV()))
                 .user(user)
                 .createTime(LocalDateTime.now())
                 .expireTime(LocalDateTime.now().plusMinutes(15))
