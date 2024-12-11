@@ -1,7 +1,7 @@
 package com.ZenFin.auth;
 
-import com.ZenFin.email.EmailService;
 import com.ZenFin.email.EmailTemplateName;
+import com.ZenFin.email.GmailService;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
@@ -35,9 +35,9 @@ public class AuthenticationService {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final OTPTokenRepository otpTokenRepository;
-    private final EmailService emailService;
     private final JwtService jwtService;
     private final EncryptionKey encryptionKey;
+    private final GmailService gmailService;
 
     @Value("${application.security.secreteId}")
     private String secretID;
@@ -62,9 +62,10 @@ public class AuthenticationService {
                 .roles(List.of(role))
                 .build();
 
-        userRepository.save(user);
+
 
         sendEmailToVerify(user);
+        userRepository.save(user);
 
     }
 
@@ -72,14 +73,13 @@ public class AuthenticationService {
 
         var newOtp = generateAndSaveNewOtp(user);
 
-        emailService.sendEmail(
+        gmailService.sendEmail(
                 user.getEmail(),
                 user.fullName(),
                 EmailTemplateName.ACTIVATE_ACCOUNT,
                 activationUrl,
                 newOtp,
-                "account activation",
-                port
+                "account activation"
         );
     }
 
