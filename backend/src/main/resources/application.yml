@@ -19,24 +19,22 @@ spring:
         format_sql: true
     database: postgresql
     database-platform: org.hibernate.dialect.PostgreSQLDialect
+  security:
+    oauth2:
+      client:
+        registration:
+          azure:
+            client-id: 5b1d43d8-ed80-4233-ad3e-c43244d2dfa5
+            client-secret: YCM8Q~rv~sthMBUDUGs22H4M6SAH-YkMldTX6cNr
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: chethanks340@gmail.com
-    password: zegb cjqw gfbn cpix
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-          connectiontimeout: 5000
-          timeout: 3000
-          writetimeout: 5000
+    username: chethanks545@gmail.com
+microsoft:
+  azure:
+    tenant-id: 52853a78-eed9-4512-a057-d857e118655e
 
 application:
   security:
-    secreteId: projects/458586569167/secrets/encryption-key/versions/2
+    secreteName: ZenFin-Key
     jwt:
       expiration: 8640000
 
