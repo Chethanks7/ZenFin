@@ -1,7 +1,8 @@
 package com.ZenFin.auth;
 
+import com.ZenFin.email.EmailService;
 import com.ZenFin.email.EmailTemplateName;
-import com.ZenFin.email.GmailService;
+import com.ZenFin.email.MailModel;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
@@ -37,10 +38,11 @@ public class AuthenticationService {
     private final OTPTokenRepository otpTokenRepository;
     private final JwtService jwtService;
     private final EncryptionKey encryptionKey;
-    private final GmailService gmailService;
+    private final EmailService emailService;
 
-    @Value("${application.security.secreteId}")
-    private String secretID;
+
+    @Value("${application.security.secreteName}")
+    private String secretName;
     @Value("${spring.mail.port}")
     private int port ;
 
@@ -64,7 +66,7 @@ public class AuthenticationService {
 
 
 
-        sendEmailToVerify(user);
+       // sendEmailToVerify(user);
         userRepository.save(user);
 
     }
@@ -73,13 +75,15 @@ public class AuthenticationService {
 
         var newOtp = generateAndSaveNewOtp(user);
 
-        gmailService.sendEmail(
-                user.getEmail(),
-                user.fullName(),
-                EmailTemplateName.ACTIVATE_ACCOUNT,
-                activationUrl,
-                newOtp,
-                "account activation"
+        var mailInfo = MailModel.builder()
+                .to(user.getEmail())
+                .username(user.fullName())
+                .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+                .activationCode(newOtp)
+                .subject("Activate account ")
+                .build();
+        emailService.sendEmail(
+               mailInfo
         );
     }
 
@@ -105,7 +109,7 @@ public class AuthenticationService {
     }
 
     public Key getKey() throws IOException {
-        String base64EncodedKey = encryptionKey.getEncryptionKey(secretID);
+        String base64EncodedKey = encryptionKey.getEncryptionKey(secretName);
         byte[] keyBytes = Base64.getDecoder().decode(base64EncodedKey);
         return new SecretKeySpec(keyBytes, "AES");
     }
