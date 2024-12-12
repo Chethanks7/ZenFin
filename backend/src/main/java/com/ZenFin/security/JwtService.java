@@ -27,8 +27,8 @@ public class JwtService {
     @Value("${application.security.jwt.expiration}")
     private Long jwtExpiration;
 
-    @Value("${application.security.secreteId}")
-    private String secretID;
+    @Value("${application.security.secreteName}")
+    private String secretName;
 
     private final EncryptionKey encryptionKey;
 
@@ -96,7 +96,7 @@ public class JwtService {
 
     public Key getSignInKey() throws IOException {
         // Decodes the base64 encoded secret key and returns it as a Key object.
-        byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey(secretID));
+        byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey(secretName));
         return Keys.secretKeyFor(SignatureAlgorithm.valueOf("AES")); // Creates an HMAC signing key for signing the JWT.
     }
 }

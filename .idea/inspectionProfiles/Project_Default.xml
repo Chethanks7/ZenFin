@@ -10,18 +10,27 @@
         <list>
           <option value="ZenFin" />
           <option value="ZenFin" />
+          <option value="ZenFin" />
+          <option value="ZenFin" />
+          <option value="ZenFin" />
         </list>
       </option>
       <option name="ignoredPackages">
         <list>
           <option value="io.grpc:grpc-protobuf:1.50.2" />
           <option value="com.google.protobuf:protobuf-java:3.21.9" />
+          <option value="com.azure:azure-identity:1.9.0" />
+          <option value="com.squareup.okio:okio:2.8.0" />
+          <option value="org.json:json:20140107" />
         </list>
       </option>
       <option name="ignoredReasons">
         <list>
           <option value="Not exploitable" />
           <option value="Other" />
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
+          <option value="Not exploitable" />
         </list>
       </option>
     </inspection_tool>
