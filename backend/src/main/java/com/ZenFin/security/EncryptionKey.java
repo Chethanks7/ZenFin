@@ -1,26 +1,23 @@
 package com.ZenFin.security;
 
-import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
-import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
-import org.springframework.context.annotation.Configuration;
 
-import java.io.IOException;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.security.keyvault.secrets.SecretClient;
+import com.azure.security.keyvault.secrets.SecretClientBuilder;
+import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class EncryptionKey {
 
 
-    public String getEncryptionKey(
-            String secreteId
+    private static final String VAULT_URL = "https://zenfin-key.vault.azure.net/";
+    public String getEncryptionKey(String secretName) {
+        SecretClient secretClient = new SecretClientBuilder()
+                .vaultUrl(VAULT_URL)
+                .credential(new DefaultAzureCredentialBuilder().build())
+                .buildClient();
 
-    ) throws IOException {
-        SecretManagerServiceClient client = SecretManagerServiceClient.create();
-
-        AccessSecretVersionResponse response = client.accessSecretVersion(secreteId);
-
-        return response.getPayload().getData().toStringUtf8();
-
-
+        return secretClient.getSecret(secretName).getValue();
     }
 
 }
