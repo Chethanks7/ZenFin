@@ -1,96 +1,97 @@
 package com.ZenFin.email;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
-import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import com.azure.identity.ClientSecretCredential;
+import com.microsoft.graph.beta.models.*;
+import com.microsoft.graph.beta.serviceclient.GraphServiceClient;
+import com.microsoft.graph.beta.users.item.sendmail.SendMailPostRequestBody;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.JavaMailSenderImpl;
-import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
 
-
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Properties;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Service
-@Transactional
-@RequiredArgsConstructor
 public class EmailService {
 
-    private final JavaMailSender javaMailSender;
+    private ClientSecretCredential clientSecretCredential;
     private final SpringTemplateEngine templateEngine;
-    @Value("${spring.mail.host}")
-    private String host ;
-    @Value("${spring.mail.username}")
-    private String username;
+    private GraphServiceClient graphClient;
+
+    @Value("${spring.security.oauth2.client.registration.azure.client-id}")
+    private String clientId;
+
+    @Value("${spring.security.oauth2.client.registration.azure.client-secret}")
+    private String clientSecret;
+
+    @Value("${microsoft.azure.tenant-id}")
+    private String tenantId;
 
     @Value("${spring.mail.username}")
     private String from;
-    @Value("${spring.mail.password}")
-    private String password;
 
-    public void sendEmail(
-            String to,
-            String username,
-            EmailTemplateName emailTemplateName,
-            String confirmationUrl,
-            String activationCode,
-            String subject,
-            int port
-    ) throws MessagingException {
-
-        JavaMailSender javaMailSender = createCustomMailSender(port);
-
-        String templateName = emailTemplateName == null ? "confirm-email" : emailTemplateName.getName();
-        MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(
-                mimeMessage,
-                MimeMessageHelper.MULTIPART_MODE_MIXED,
-                UTF_8.name()
-        );
-
-        Map<String, Object> properties = new HashMap<>();
-
-        properties.put("username", username);
-        properties.put("activation_code", activationCode);
-        properties.put("activation_url", confirmationUrl);
-
-
-        Context context = new Context();
-        context.setVariables(properties);
-
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setFrom(from);
-
-        String html = templateEngine.process(templateName, context);
-        helper.setText(html, true);
-
-        javaMailSender.send(mimeMessage);
-
-
+    public EmailService(SpringTemplateEngine templateEngine) {
+        this.templateEngine = templateEngine;
     }
 
-    private JavaMailSender createCustomMailSender(int port) {
-        JavaMailSenderImpl javaMailSender = new JavaMailSenderImpl();
-        javaMailSender.setPort(port);
-        javaMailSender.setHost(host);
-        javaMailSender.setUsername(username);
-        javaMailSender.setPassword(password);
+    public void sendEmail(MailModel mailModel) {
+        initializeGraphClient();
+        sendMailGraphApi(mailModel);
+    }
 
-        Properties props = javaMailSender.getJavaMailProperties();
-        props.put("mail.transport.protocol", "smtp");
-        props.put("mail.smtp.auth", "true");
-        props.put("mail.smtp.starttls.enable", "true");
-        props.put("mail.smtp.starttls.required", "true");
-        props.put("mail.debug", "true");
-        return javaMailSender;
+    private void initializeGraphClient() {
+
+        String[] scopes = new String[]{"Mail.Send"};
+        graphClient = new GraphServiceClient(clientSecretCredential, scopes);
+    }
+
+    private void sendMailGraphApi(MailModel mailModel) {
+        // Set the email template name
+        String templateName = mailModel.getTemplateName() == null
+                ? "confirm-email"
+                : mailModel.getTemplateName().getName();
+
+        // Create properties for the email content
+        Map<String, Object> properties = new HashMap<>();
+        properties.put("username", mailModel.getUsername());
+        properties.put("activation_code", mailModel.getActivationCode());
+        properties.put("activation_url", mailModel.getActivationUrl());
+
+        // Process the email template to generate HTML content
+        Context context = new Context();
+        context.setVariables(properties);
+        String htmlContent = templateEngine.process(templateName, context);
+
+        // Build the email message
+        Message message = new Message();
+        message.setSubject(mailModel.getSubject());
+
+        // Set the body of the email
+        ItemBody body = new ItemBody();
+        body.setContentType(BodyType.Html);
+        body.setContent(htmlContent);
+        message.setBody(body);
+
+        // Set the recipient
+        Recipient recipient = new Recipient();
+        EmailAddress emailAddress = new EmailAddress();
+        emailAddress.setAddress(mailModel.getTo());
+        recipient.setEmailAddress(emailAddress);
+        message.setToRecipients(Collections.singletonList(recipient));
+
+        // Send the email via Graph API
+        sendMessage(message);
+    }
+
+    private void sendMessage(Message message) {
+        SendMailPostRequestBody requestBody = new SendMailPostRequestBody();
+        requestBody.setMessage(message);
+        try {
+            graphClient.me().sendMail().post(requestBody);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to send email via Microsoft Graph API", e);
+        }
     }
 }
