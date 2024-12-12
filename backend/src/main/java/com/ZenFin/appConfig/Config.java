@@ -1,6 +1,7 @@
 package com.ZenFin.appConfig;
 
 import com.ZenFin.security.UserDetailsServiceImpl;
+import com.microsoft.graph.serviceclient.GraphServiceClient;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -37,6 +38,7 @@ public class Config {
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
+
 
 
 }
