@@ -97,6 +97,6 @@ public class JwtService {
     public Key getSignInKey() throws IOException {
         // Decodes the base64 encoded secret key and returns it as a Key object.
         byte[] bytes = Decoders.BASE64.decode(encryptionKey.getEncryptionKey(secretName));
-        return Keys.secretKeyFor(SignatureAlgorithm.valueOf("AES")); // Creates an HMAC signing key for signing the JWT.
+        return Keys.hmacShaKeyFor(bytes); // Creates an HMAC signing key for signing the JWT.
     }
 }

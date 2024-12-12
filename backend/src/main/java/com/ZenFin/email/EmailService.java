@@ -1,6 +1,7 @@
 package com.ZenFin.email;
 
 import com.azure.identity.ClientSecretCredential;
+import com.azure.identity.ClientSecretCredentialBuilder;
 import com.microsoft.graph.beta.models.*;
 import com.microsoft.graph.beta.serviceclient.GraphServiceClient;
 import com.microsoft.graph.beta.users.item.sendmail.SendMailPostRequestBody;
@@ -16,7 +17,6 @@ import java.util.Map;
 @Service
 public class EmailService {
 
-    private ClientSecretCredential clientSecretCredential;
     private final SpringTemplateEngine templateEngine;
     private GraphServiceClient graphClient;
 
@@ -44,6 +44,11 @@ public class EmailService {
     private void initializeGraphClient() {
 
         String[] scopes = new String[]{"Mail.Send"};
+        ClientSecretCredential clientSecretCredential = new ClientSecretCredentialBuilder()
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .tenantId(tenantId)
+                .build();
         graphClient = new GraphServiceClient(clientSecretCredential, scopes);
     }
 
