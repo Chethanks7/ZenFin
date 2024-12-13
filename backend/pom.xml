@@ -55,26 +55,25 @@
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-security-keyvault-secrets</artifactId>
-            <version>4.5.2</version>
+            <version>4.8.4</version>
         </dependency>
-        <dependency>
-            <groupId>com.microsoft.graph</groupId>
-            <artifactId>microsoft-graph</artifactId>
-            <version>6.23.0</version>
-        </dependency>
+
+
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-identity</artifactId>
             <version>1.14.2</version>
         </dependency>
 
-
         <dependency>
             <groupId>com.microsoft.graph</groupId>
-            <artifactId>microsoft-graph-beta</artifactId>
-            <version>[6.0,)</version>
+            <artifactId>microsoft-graph</artifactId>
+            <version>5.0.0</version>
         </dependency>
-<!--        <dependency>-->
+
+
+
+        <!--        <dependency>-->
 <!--            <groupId>com.azure</groupId>-->
 <!--            <artifactId>azure-identity</artifactId>-->
 <!--            <version>[1.11,)</version>-->
@@ -150,6 +149,7 @@
                     </excludes>
                 </configuration>
             </plugin>
+
         </plugins>
     </build>
 

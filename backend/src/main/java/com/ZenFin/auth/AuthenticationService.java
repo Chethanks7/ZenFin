@@ -5,7 +5,6 @@ import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.email.MailModel;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
-import com.ZenFin.security.JwtService;
 import com.ZenFin.user.OTPToken;
 import com.ZenFin.user.OTPTokenRepository;
 import com.ZenFin.user.User;
@@ -36,16 +35,12 @@ public class AuthenticationService {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final OTPTokenRepository otpTokenRepository;
-    private final JwtService jwtService;
     private final EncryptionKey encryptionKey;
     private final EmailService emailService;
 
 
     @Value("${application.security.secreteName}")
     private String secretName;
-    @Value("${spring.mail.port}")
-    private int port ;
-
 
 
     @Value("${spring.mailing.frontend.activation-url}")
@@ -66,7 +61,7 @@ public class AuthenticationService {
 
 
 
-       // sendEmailToVerify(user);
+        sendEmailToVerify(user);
         userRepository.save(user);
 
     }
@@ -82,7 +77,7 @@ public class AuthenticationService {
                 .activationCode(newOtp)
                 .subject("Activate account ")
                 .build();
-        emailService.sendEmail(
+        emailService.sendMail(
                mailInfo
         );
     }

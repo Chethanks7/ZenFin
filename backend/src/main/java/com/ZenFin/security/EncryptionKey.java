@@ -11,6 +11,7 @@ public class EncryptionKey {
 
 
     private static final String VAULT_URL = "https://zenfin-key.vault.azure.net/";
+
     public String getEncryptionKey(String secretName) {
         SecretClient secretClient = new SecretClientBuilder()
                 .vaultUrl(VAULT_URL)

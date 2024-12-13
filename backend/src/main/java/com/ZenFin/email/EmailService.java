@@ -1,11 +1,12 @@
 package com.ZenFin.email;
 
-import com.azure.identity.ClientSecretCredential;
-import com.azure.identity.ClientSecretCredentialBuilder;
-import com.microsoft.graph.beta.models.*;
-import com.microsoft.graph.beta.serviceclient.GraphServiceClient;
-import com.microsoft.graph.beta.users.item.sendmail.SendMailPostRequestBody;
-import org.springframework.beans.factory.annotation.Value;
+import com.azure.identity.AzureCliCredential;
+import com.azure.identity.AzureCliCredentialBuilder;
+import com.microsoft.graph.authentication.IAuthenticationProvider;
+import com.microsoft.graph.models.*;
+import com.microsoft.graph.requests.GraphServiceClient;
+import lombok.RequiredArgsConstructor;
+import okhttp3.Request;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.context.Context;
 import org.thymeleaf.spring6.SpringTemplateEngine;
@@ -13,52 +14,57 @@ import org.thymeleaf.spring6.SpringTemplateEngine;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Service
+@RequiredArgsConstructor
 public class EmailService {
 
     private final SpringTemplateEngine templateEngine;
-    private GraphServiceClient graphClient;
-
-    @Value("${spring.security.oauth2.client.registration.azure.client-id}")
-    private String clientId;
-
-    @Value("${spring.security.oauth2.client.registration.azure.client-secret}")
-    private String clientSecret;
-
-    @Value("${microsoft.azure.tenant-id}")
-    private String tenantId;
-
-    @Value("${spring.mail.username}")
-    private String from;
-
-    public EmailService(SpringTemplateEngine templateEngine) {
-        this.templateEngine = templateEngine;
-    }
-
-    public void sendEmail(MailModel mailModel) {
-        initializeGraphClient();
-        sendMailGraphApi(mailModel);
-    }
+    private GraphServiceClient<Request> graphClient;
 
     private void initializeGraphClient() {
-
+        // Define the scopes for sending email
         String[] scopes = new String[]{"Mail.Send"};
-        ClientSecretCredential clientSecretCredential = new ClientSecretCredentialBuilder()
-                .clientId(clientId)
-                .clientSecret(clientSecret)
-                .tenantId(tenantId)
-                .build();
-        graphClient = new GraphServiceClient(clientSecretCredential, scopes);
+
+        // Create an AzureCliCredential instance to obtain a token
+        AzureCliCredential azureCliCredential = new AzureCliCredentialBuilder().build();
+
+
+        // Create Authentication Provider with Azure CLI credential
+        IAuthenticationProvider authProvider = request -> {
+            // Create a CompletableFuture to return the token
+            CompletableFuture<String> future = new CompletableFuture<>();
+
+            // Use the AzureCliCredential to obtain the token
+            try {
+                // Get the token asynchronously for the Microsoft Graph API or any other API
+                // Handle any errors that occur during the token retrieval
+                azureCliCredential.getToken(new com.azure.core.credential.TokenRequestContext().addScopes(scopes))
+                        .subscribe(token -> {
+                            // When the token is retrieved, complete the future with the token
+                            future.complete(token.getToken());
+                        }, future::completeExceptionally);
+            } catch (Exception e) {
+                // Handle any unexpected errors
+                future.completeExceptionally(e);
+            }
+
+            // Return the future containing the authorization token
+            return future;
+        };
+
+        // Initialize the Graph client with the authentication provider
+        graphClient = GraphServiceClient
+                .builder()
+                .authenticationProvider(authProvider)
+                .buildClient();
     }
 
-    private void sendMailGraphApi(MailModel mailModel) {
-        // Set the email template name
+    public void sendMail(MailModel mailModel) {
         String templateName = mailModel.getTemplateName() == null
                 ? "confirm-email"
                 : mailModel.getTemplateName().getName();
-
-        // Create properties for the email content
         Map<String, Object> properties = new HashMap<>();
         properties.put("username", mailModel.getUsername());
         properties.put("activation_code", mailModel.getActivationCode());
@@ -71,30 +77,36 @@ public class EmailService {
 
         // Build the email message
         Message message = new Message();
-        message.setSubject(mailModel.getSubject());
+        message.subject = mailModel.getSubject();
 
         // Set the body of the email
         ItemBody body = new ItemBody();
-        body.setContentType(BodyType.Html);
-        body.setContent(htmlContent);
-        message.setBody(body);
+        body.contentType = BodyType.HTML;
+        body.content = htmlContent;
+        message.body = body;
 
         // Set the recipient
         Recipient recipient = new Recipient();
         EmailAddress emailAddress = new EmailAddress();
-        emailAddress.setAddress(mailModel.getTo());
-        recipient.setEmailAddress(emailAddress);
-        message.setToRecipients(Collections.singletonList(recipient));
+        emailAddress.address = mailModel.getTo();
+        recipient.emailAddress = emailAddress;
+        message.toRecipients = Collections.singletonList(recipient);
+
+        UserSendMailParameterSet parameterSet = new UserSendMailParameterSet();
+        parameterSet.message = message;
+
 
         // Send the email via Graph API
-        sendMessage(message);
+        sendMessage(parameterSet);
     }
 
-    private void sendMessage(Message message) {
-        SendMailPostRequestBody requestBody = new SendMailPostRequestBody();
-        requestBody.setMessage(message);
+    private void sendMessage(UserSendMailParameterSet message) {
         try {
-            graphClient.me().sendMail().post(requestBody);
+            graphClient
+                    .me()
+                    .sendMail(message)  // 'true' to save a copy in the Sent Items
+                    .buildRequest()
+                    .post();
         } catch (Exception e) {
             throw new RuntimeException("Failed to send email via Microsoft Graph API", e);
         }

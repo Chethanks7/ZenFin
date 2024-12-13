@@ -2,7 +2,6 @@ package com.ZenFin.auth;
 
 import com.ZenFin.user.UserRegistrationDTO;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,10 +9,13 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/auth")
 @CrossOrigin("*")
-@RequiredArgsConstructor
 public class AuthenticationController {
 
     private final AuthenticationService service;
+
+    public AuthenticationController(AuthenticationService service) {
+        this.service = service;
+    }
 
 
     @PostMapping("/register")
