@@ -36,4 +36,13 @@ public class AuthenticationController {
                         .userRegistrationDTO(userResponse)
                         .build());
     }
+
+    @GetMapping("verify-otp")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ResponseEntity<?> verifyEmail(@RequestParam String otp) throws Exception {
+        service.verifyOtp(otp);
+        return  ResponseEntity.ok("Your account has been verified. You can log in now");
+
+    }
+
 }
