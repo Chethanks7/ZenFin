@@ -9,20 +9,18 @@ import com.ZenFin.user.OTPToken;
 import com.ZenFin.user.OTPTokenRepository;
 import com.ZenFin.user.User;
 import com.ZenFin.user.UserRepository;
+import jakarta.mail.MessagingException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.Cipher;
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
+import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.security.Key;
-import java.security.SecureRandom;
+import java.security.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -61,7 +59,6 @@ public class AuthenticationService {
                 .build();
 
 
-
         sendEmailToVerify(user);
         userRepository.save(user);
 
@@ -79,13 +76,13 @@ public class AuthenticationService {
                 .subject("Activate account ")
                 .build();
         emailService.sendMail(
-               mailInfo
-                ,587
+                mailInfo
+                , 587
         );
     }
 
 
-    public IvParameterSpec generateIv(){
+    public IvParameterSpec generateIv() {
         byte[] keyBytes = new byte[16]; // For 128-bit AES
         new SecureRandom().nextBytes(keyBytes);
         return new IvParameterSpec(keyBytes);
@@ -98,9 +95,9 @@ public class AuthenticationService {
         return keyGen.generateKey();
     }
 
-    public String encryptedOtp(String otp, Key key , IvParameterSpec iv) throws Exception {
+    public String encryptedOtp(String otp, Key key, IvParameterSpec iv) throws Exception {
         Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE,key ,iv);
+        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
         byte[] encryptedOtp = cipher.doFinal(otp.getBytes());
         return Base64.getEncoder().encodeToString(encryptedOtp);
     }
@@ -118,11 +115,15 @@ public class AuthenticationService {
 
         //here before storing opt to the database, should be encrypted
 
+        IvParameterSpec iv = generateIv();
+        Key key = getKey();
         var otpToken = OTPToken.builder()
                 .otp(encryptedOtp(otp,
-                        getKey()
-                        ,generateIv()))
-                .ivParameterSpec(Base64.getEncoder().encodeToString(generateIv().getIV()))
+                        key
+                        , iv)
+                )
+                .key(Base64.getEncoder().encodeToString(key.getEncoded()))
+                .ivParameterSpec(Base64.getEncoder().encodeToString(iv.getIV()))
                 .user(user)
                 .createTime(LocalDateTime.now())
                 .expireTime(LocalDateTime.now().plusMinutes(15))
@@ -142,4 +143,64 @@ public class AuthenticationService {
         }
         return otp.toString();
     }
+
+    public void verifyOtp(String otp) throws MessagingException {
+        OTPToken otpToken = otpTokenRepository.findByOtp(otp)
+                .orElseThrow(() -> new IllegalArgumentException("otp is not valid. try again"));
+
+        byte attempts = otpToken.getNoOfAttempts();
+        var user = otpToken.getUser();
+
+
+        // String decryptOtp= decryptOtp(otpToken.getOtp(),otpToken.getIvParameterSpec(), otpToken.getKey());
+
+        if (!otpToken.getOtp().trim().equals(otp.trim()) || otpToken.getExpireTime().plusMinutes(15).isBefore(LocalDateTime.now())) {
+            if (attempts < 5) {
+                String newOtp = generateOtp();
+                var mailInfo = MailModel.builder()
+                        .to(user.getEmail())
+                        .username(user.fullName())
+                        .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+                        .activationCode(newOtp)
+                        .subject("Activate account ")
+                        .build();
+                otpTokenRepository.save(otpToken);
+                emailService.sendMail(
+                        mailInfo
+                        , 587
+                );
+                return;
+            } else {
+
+                otpToken.setNoOfAttempts(attempts++);
+                otpTokenRepository.save(otpToken);
+                return;
+
+            }
+        }
+
+        user.setEnabled(true);
+        user.setUpdatedAt(LocalDateTime.now());
+        userRepository.save(user);
+
+
+    }
+
+//    private String decryptOtp(String encryptedOtp, String ivParameterSpec, String key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
+//        byte[] ivBytes = Base64.getDecoder().decode(ivParameterSpec); // Decode Base64 to bytes
+//        IvParameterSpec iv = new IvParameterSpec(ivBytes);
+//        byte[] keyBytes = Base64.getDecoder().decode(key);
+//        Key newKey = new SecretKeySpec(keyBytes, "AES");
+//        byte[] encryptedOtpBytes = Base64.getDecoder().decode(encryptedOtp);
+//
+//
+//        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+//        cipher.init(Cipher.DECRYPT_MODE, newKey, iv);
+//
+//        byte[] decryptedOtpBytes = cipher.doFinal();
+//
+//        return new String(decryptedOtpBytes);
+//
+//    }
+
 }

@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.security.Key;
 import java.time.LocalDateTime;
 
 @Entity
@@ -30,9 +31,12 @@ public class OTPToken {
     private String ivParameterSpec;
 
     @Column(nullable = false)
+    private String key;
+
+    @Column(nullable = false)
     private LocalDateTime expireTime;
 
-    private Byte noOfAttempts;
+    private byte noOfAttempts;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false, targetEntity = User.class, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", nullable = false)
