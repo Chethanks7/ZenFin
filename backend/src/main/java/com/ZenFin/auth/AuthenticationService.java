@@ -5,6 +5,8 @@ import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.email.MailModel;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
+import com.ZenFin.security.UserOtpStatus;
+import com.ZenFin.security.UserOtpStatusRepository;
 import com.ZenFin.user.OTPToken;
 import com.ZenFin.user.OTPTokenRepository;
 import com.ZenFin.user.User;
@@ -14,6 +16,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.*;
@@ -37,6 +40,10 @@ public class AuthenticationService {
     private final EncryptionKey encryptionKey;
     private final EmailService emailService;
 
+    private static final byte MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_TIME = 60 * 1000L;
+    private final UserOtpStatusRepository userOtpStatusRepository;
+
 
     @Value("${application.security.secreteName}")
     private String secretName;
@@ -45,7 +52,7 @@ public class AuthenticationService {
     @Value("${spring.mailing.frontend.activation-url}")
     private String activationUrl;
 
-    public void register(@Valid RegistrationRequest registration) throws Exception {
+    public User register(@Valid RegistrationRequest registration) throws Exception {
         var role = roleRepository.findByName("USER")
                 .orElseThrow(() -> new IllegalArgumentException("Role is not in database"));
 
@@ -60,7 +67,12 @@ public class AuthenticationService {
 
 
         sendEmailToVerify(user);
-        userRepository.save(user);
+        var userLockStatus = UserOtpStatus.builder()
+                .userID(user.getId())
+                .maxFailedAttempts(MAX_FAILED_ATTEMPTS)
+                .build();
+        userOtpStatusRepository.save(userLockStatus);
+       return  userRepository.save(user);
 
     }
 
@@ -144,63 +156,68 @@ public class AuthenticationService {
         return otp.toString();
     }
 
-    public void verifyOtp(String otp) throws MessagingException {
-        OTPToken otpToken = otpTokenRepository.findByOtp(otp)
-                .orElseThrow(() -> new IllegalArgumentException("otp is not valid. try again"));
-
-        byte attempts = otpToken.getNoOfAttempts();
-        var user = otpToken.getUser();
+    public String verifyOtp(String otp, String userId) throws MessagingException {
 
 
-        // String decryptOtp= decryptOtp(otpToken.getOtp(),otpToken.getIvParameterSpec(), otpToken.getKey());
+        var userOtpStatus = userOtpStatusRepository.findByUserID(userId);
 
-        if (!otpToken.getOtp().trim().equals(otp.trim()) || otpToken.getExpireTime().plusMinutes(15).isBefore(LocalDateTime.now())) {
-            if (attempts < 5) {
-                String newOtp = generateOtp();
-                var mailInfo = MailModel.builder()
-                        .to(user.getEmail())
-                        .username(user.fullName())
-                        .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
-                        .activationCode(newOtp)
-                        .subject("Activate account ")
-                        .build();
-                otpTokenRepository.save(otpToken);
-                emailService.sendMail(
-                        mailInfo
-                        , 587
-                );
-                return;
-            } else {
+        if (!isUserLockedOut(userId)) {
+            OTPToken otpToken = otpTokenRepository.findByOtp(otp)
+                    .orElseThrow(() -> new IllegalArgumentException("otp is not valid " + otp));
 
-                otpToken.setNoOfAttempts(attempts++);
-                otpTokenRepository.save(otpToken);
-                return;
+            var user = otpToken.getUser();
 
+
+            // String decryptOtp= decryptOtp(otpToken.getOtp(),otpToken.getIvParameterSpec(), otpToken.getKey());
+
+
+            byte maxAttempts = userOtpStatus.getMaxFailedAttempts();
+            if (
+                    !otpToken.getOtp().trim().equals(otp.trim()) ||
+                            otpToken.getExpireTime().plusMinutes(15).isBefore(LocalDateTime.now())
+            ) {
+                if (userOtpStatus.getMaxFailedAttempts() > 0) {
+                    String newOtp = generateOtp();
+                    var mailInfo = MailModel.builder()
+                            .to(user.getEmail())
+                            .username(user.fullName())
+                            .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+                            .activationCode(newOtp)
+                            .subject("Activate account ")
+                            .build();
+                    userOtpStatus.setMaxFailedAttempts(--maxAttempts);
+                    userOtpStatusRepository.save(userOtpStatus);
+                    otpTokenRepository.save(otpToken);
+                    emailService.sendMail(
+                            mailInfo
+                            , 587
+                    );
+                    return "email sent to registered email";
+                } else {
+                    otpTokenRepository.save(otpToken);
+                    userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
+                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(LOCKOUT_TIME));
+                    return "you attempted maximum failed attempts. Try after one minute ";
+
+                }
             }
+
+            user.setEnabled(true);
+            user.setUpdatedAt(LocalDateTime.now());
+            userRepository.save(user);
+            return "email verification success now you can login";
+        } else {
+            return "Your account has been locked due to multiple failed login attempts. Please try again after " +
+                    userOtpStatus.getLockTime() + " minutes";
         }
-
-        user.setEnabled(true);
-        user.setUpdatedAt(LocalDateTime.now());
-        userRepository.save(user);
-
-
     }
 
-//    private String decryptOtp(String encryptedOtp, String ivParameterSpec, String key) throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException, InvalidAlgorithmParameterException {
-//        byte[] ivBytes = Base64.getDecoder().decode(ivParameterSpec); // Decode Base64 to bytes
-//        IvParameterSpec iv = new IvParameterSpec(ivBytes);
-//        byte[] keyBytes = Base64.getDecoder().decode(key);
-//        Key newKey = new SecretKeySpec(keyBytes, "AES");
-//        byte[] encryptedOtpBytes = Base64.getDecoder().decode(encryptedOtp);
-//
-//
-//        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-//        cipher.init(Cipher.DECRYPT_MODE, newKey, iv);
-//
-//        byte[] decryptedOtpBytes = cipher.doFinal();
-//
-//        return new String(decryptedOtpBytes);
-//
-//    }
+    private boolean isUserLockedOut(String id) {
+        UserOtpStatus status = userOtpStatusRepository.findByUserID(id);
+        if(status.getLockTime() !=null) return status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(1));
+
+        return false;
+    }
+
 
 }

@@ -1,9 +1,11 @@
 package com.ZenFin.auth;
 
+import com.ZenFin.user.User;
 import com.ZenFin.user.UserRegistrationDTO;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -25,11 +27,12 @@ public class AuthenticationController {
             @Valid
             RegistrationRequest registration
     ) throws Exception {
-        service.register(registration);
+        User user = service.register(registration);
 
         var userResponse = UserRegistrationDTO.builder()
-                .fullName(registration.getFirstname()+" "+registration.getLastname())
-                .email(registration.getEmail())
+                .fullName(user.fullName())
+                .email(user.getEmail())
+                .userId(user.getId())
                 .build();
         return ResponseEntity.ok(RegistrationResponse.builder()
                         .message("Registration successful! Please verify your email.")
@@ -39,9 +42,9 @@ public class AuthenticationController {
 
     @GetMapping("verify-otp")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ResponseEntity<?> verifyEmail(@RequestParam String otp) throws Exception {
-        service.verifyOtp(otp);
-        return  ResponseEntity.ok("Your account has been verified. You can log in now");
+    public ResponseEntity<?> verifyEmail(@RequestParam String otp,@RequestParam String userId) throws Exception {
+
+        return  ResponseEntity.ok(service.verifyOtp(otp,userId));
 
     }
 
