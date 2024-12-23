@@ -5,7 +5,6 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
-import javax.crypto.spec.IvParameterSpec;
 import java.time.LocalDateTime;
 
 @Entity
@@ -16,7 +15,6 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class OTPToken {
-
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,9 +34,7 @@ public class OTPToken {
 
     private Byte noOfAttempts;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false, targetEntity = User.class, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @ManyToOne(fetch = FetchType.LAZY, optional = false, targetEntity = User.class, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-
 }

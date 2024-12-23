@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.security.Key;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 
@@ -56,7 +57,7 @@ public class AuthenticationService {
                 .email(registration.getEmail())
                 .password(registration.getPassword())// later add encoding the password
                 .accountLocked(false)
-                .roles(List.of(role))
+                .roles(new ArrayList<>(List.of(role)))
                 .build();
 
 
@@ -79,6 +80,7 @@ public class AuthenticationService {
                 .build();
         emailService.sendMail(
                mailInfo
+                ,587
         );
     }
 

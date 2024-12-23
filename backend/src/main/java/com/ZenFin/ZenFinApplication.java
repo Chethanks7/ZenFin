@@ -8,17 +8,20 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 
 @EnableJpaAuditing
 @EnableJpaRepositories
 @SpringBootApplication(scanBasePackages = "com.ZenFin")
+@EnableAsync
 public class ZenFinApplication {
 
     public static void main(String[] args) throws Exception {
 
         SpringApplication.run(ZenFinApplication.class, args);
     }
+
 
     @Bean
     public CommandLineRunner runner(RoleRepository roleRepository) {
@@ -31,5 +34,4 @@ public class ZenFinApplication {
             }
         };
     }
-
 }

@@ -13,22 +13,24 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.nio.file.attribute.UserPrincipal;
+import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
 
-@Getter
-@Setter
-@Builder
-@AllArgsConstructor
-@NoArgsConstructor
 @Entity
 @Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
-public class User implements UserDetails, UserPrincipal {
+@Getter
+@Setter
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class User implements UserDetails , Principal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -46,20 +48,20 @@ public class User implements UserDetails, UserPrincipal {
     @Column(nullable = false)
     private String password;
 
-    @ManyToMany(fetch = FetchType.EAGER, cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
+    @ManyToMany(fetch = FetchType.LAZY, cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
     private List<Role> roles;
 
-    @Column(nullable = false,updatable = false)
     @CreatedDate
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(nullable = false)
     @LastModifiedDate
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     private boolean accountLocked;
 
-    private boolean isEnabled ; // Default active
+    private boolean enabled;
 
     private String phoneNumber;
 
@@ -69,11 +71,11 @@ public class User implements UserDetails, UserPrincipal {
 
     private String profilePictureUrl;
 
-    private boolean twoFactorEnabled ;
+    private boolean twoFactorEnabled;
 
     private LocalDateTime lastLogin;
 
-    private int failedLoginAttempts ;
+    private int failedLoginAttempts;
 
     private String securityQuestion;
 
@@ -82,7 +84,6 @@ public class User implements UserDetails, UserPrincipal {
     public String fullName() {
         return firstName + " " + lastName;
     }
-
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -99,26 +100,27 @@ public class User implements UserDetails, UserPrincipal {
 
     @Override
     public boolean isAccountNonExpired() {
-        return UserDetails.super.isAccountNonExpired();
+        return true; // Implement business logic
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserDetails.super.isAccountNonLocked();
+        return !accountLocked && failedLoginAttempts < 5; // Example logic
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return UserDetails.super.isCredentialsNonExpired();
+        return true; // Implement business logic
     }
 
     @Override
     public boolean isEnabled() {
-        return isEnabled;
+        return enabled;
     }
+
 
     @Override
     public String getName() {
-        return fullName();
+        return email;
     }
 }
