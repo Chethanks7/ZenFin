@@ -1,12 +1,15 @@
 package com.ZenFin.auth;
 
 import com.ZenFin.user.User;
-import com.ZenFin.user.UserRegistrationDTO;
-import jakarta.mail.MessagingException;
+import com.ZenFin.user.UserResponseDTO;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/auth")
@@ -29,30 +32,60 @@ public class AuthenticationController {
     ) throws Exception {
         User user = service.register(registration);
 
-        var userResponse = UserRegistrationDTO.builder()
+        var userResponse = UserResponseDTO.builder()
                 .fullName(user.fullName())
                 .email(user.getEmail())
                 .userId(user.getUserId())
                 .build();
         return ResponseEntity.ok(RegistrationResponse.builder()
-                        .message("Registration successful! Please verify your email.")
-                        .userRegistrationDTO(userResponse)
-                        .build());
+                .message("Registration successful! Please verify your email.")
+                .userRegistrationDTO(userResponse)
+                .build());
     }
 
     @GetMapping("verify-otp")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ResponseEntity<?> verifyEmail(@RequestParam String otp,@RequestParam String userId) throws Exception {
+    public ResponseEntity<?> verifyEmail(
+            @RequestParam
+            @NotBlank(message = "otp can't be empty")
+            String otp
+            ,
+            @RequestParam
+            @NotBlank(message = "email can't be empty")
+            String userId) throws Exception {
 
-        return  ResponseEntity.ok(service.verifyOtp(otp,userId));
+        return ResponseEntity.ok(service.verifyOtp(otp, userId));
 
     }
 
 
     @PostMapping("resend-otp")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    private ResponseEntity<?> resendEmail(@RequestParam String userId) throws Exception {
+    public ResponseEntity<String> resendEmail(@RequestParam String userId) throws Exception {
         return ResponseEntity.ok(service.resendOtp(userId));
     }
 
+    @PostMapping("verify-email")
+    public ResponseEntity<EmailAuthResponse> verifyEmail(
+            @RequestParam
+            @Email(message = "not formated email")
+            @NotBlank(message = "email can't be empty")
+            String email
+    )  {
+        var response = service.verifyEmail(email);
+        return ResponseEntity.status(response.getStatus()).body(response);
+    }
+
+
+    @PostMapping("authenticate")
+    public ResponseEntity<?> authenticate(
+            @RequestBody
+            AuthenticationRequest request
+    ) throws IOException {
+        var response = service.authenticate(request);
+        var data = response instanceof AuthenticationResponse ? (AuthenticationResponse) response : (EmailAuthResponse) response;
+        return ResponseEntity.status(data.getStatus()).body(
+                data
+        );
+    }
 }

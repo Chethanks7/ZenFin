@@ -17,10 +17,8 @@ public class UserOtpStatus {
     @Id
     private String userID ;
 
-    @Column(unique = true)
     private  Byte maxFailedAttempts;
 
-    @Column(unique = true, updatable = false)
     private LocalDateTime lockTime;
 
 }

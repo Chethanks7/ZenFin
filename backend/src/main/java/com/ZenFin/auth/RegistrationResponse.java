@@ -1,7 +1,6 @@
 package com.ZenFin.auth;
 
-import com.ZenFin.user.UserRegistrationDTO;
-import jakarta.validation.constraints.NotBlank;
+import com.ZenFin.user.UserResponseDTO;
 import lombok.*;
 
 @Getter
@@ -13,6 +12,6 @@ public class RegistrationResponse {
 
    private String message;
 
-   private UserRegistrationDTO userRegistrationDTO;
+   private UserResponseDTO userRegistrationDTO;
 
 }

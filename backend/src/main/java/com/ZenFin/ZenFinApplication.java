@@ -11,9 +11,9 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.scheduling.annotation.EnableAsync;
 
 
+@SpringBootApplication
 @EnableJpaAuditing
 @EnableJpaRepositories
-@SpringBootApplication(scanBasePackages = "com.ZenFin")
 @EnableAsync
 public class ZenFinApplication {
 

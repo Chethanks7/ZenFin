@@ -74,6 +74,8 @@ public class User implements UserDetails , Principal {
 
     private boolean twoFactorEnabled;
 
+    private boolean isEmailVerified;
+
     private LocalDateTime lastLogin;
 
     private int failedLoginAttempts;

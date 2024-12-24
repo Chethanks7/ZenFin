@@ -5,18 +5,22 @@ import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.email.MailModel;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
+import com.ZenFin.security.JwtService;
 import com.ZenFin.security.UserOtpStatus;
 import com.ZenFin.security.UserOtpStatusRepository;
-import com.ZenFin.user.OTPToken;
-import com.ZenFin.user.OTPTokenRepository;
-import com.ZenFin.user.User;
-import com.ZenFin.user.UserRepository;
+import com.ZenFin.user.*;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
@@ -28,9 +32,8 @@ import java.io.IOException;
 import java.security.Key;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 @Service
 @RequiredArgsConstructor
@@ -42,9 +45,13 @@ public class AuthenticationService {
     private final OTPTokenRepository otpTokenRepository;
     private final EncryptionKey encryptionKey;
     private final EmailService emailService;
+    private final BCryptPasswordEncoder passwordEncoder;
 
     private static final byte MAX_FAILED_ATTEMPTS = 5;
+    private static final long MAX_LOCKOUT_TIME = 5*60*1000L;
     private final UserOtpStatusRepository userOtpStatusRepository;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
 
     @Value("${application.security.secreteName}")
@@ -62,7 +69,7 @@ public class AuthenticationService {
                 .firstName(registration.getFirstname())
                 .lastName(registration.getLastname())
                 .email(registration.getEmail())
-                .password(registration.getPassword())// later add encoding the password
+                .password(passwordEncoder.encode(registration.getPassword()))// later add encoding the password
                 .accountLocked(false)
                 .roles(new ArrayList<>(List.of(role)))
                 .build();
@@ -171,10 +178,7 @@ public class AuthenticationService {
 
             var user = otpToken.getUser();
             byte maxAttempts = userOtpStatus.getMaxFailedAttempts();
-            if (
-                    !otpToken.getOtp().trim().equals(otp.trim()) ||
-                            otpToken.getExpireTime().plusMinutes(15).isBefore(LocalDateTime.now())
-            ) {
+            if (LocalDateTime.now().isAfter(otpToken.getExpireTime())) {
                 if (userOtpStatus.getMaxFailedAttempts() > 0) {
                     String newOtp = generateOtp();
                     var mailInfo = MailModel.builder()
@@ -193,11 +197,10 @@ public class AuthenticationService {
                     );
                     return "email sent to registered email";
                 } else {
-                    otpTokenRepository.save(otpToken);
                     userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
-                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(2));
-                    return "you attempted maximum failed attempts. Try after one minute ";
-
+                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(MAX_LOCKOUT_TIME));
+                    userOtpStatusRepository.save(userOtpStatus);
+                    return "you attempted maximum failed attempts. Try after "+userOtpStatus.getLockTime().getMinute()+" minute ";
                 }
             }
 
@@ -216,7 +219,7 @@ public class AuthenticationService {
     private boolean isUserLockedOut(String id) {
         UserOtpStatus status = userOtpStatusRepository.findByUserID(id)
                 .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
-        if(status.getLockTime() !=null) return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(1));
+        if(status.getLockTime() !=null) return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(MAX_LOCKOUT_TIME));
 
         return true;
     }
@@ -256,4 +259,72 @@ public class AuthenticationService {
            status.getLockTime()+" minutes" ;
     }
 
+    public EmailAuthResponse verifyEmail(String email) {
+
+        var user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("User not found. Please register first"));
+
+        if (!isUserLockedOut(user.getUserId())) {
+            System.err.println("Bug");
+            return buildResponse(email, HttpStatus.FORBIDDEN,
+                    "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
+        }
+
+        if (!user.isEnabled()) {
+            return buildResponse(email, HttpStatus.BAD_REQUEST,
+                    "This email address is not yet verified. Please verify your email before logging in.");
+        }
+        user.setEmailVerified(true);
+        userRepository.save(user);
+        return buildResponse(email, HttpStatus.OK,
+                "Email verified successfully. Now enter your password.");
+    }
+
+    private EmailAuthResponse buildResponse(String email, HttpStatus status, String message) {
+        return EmailAuthResponse.builder()
+                .email(email)
+                .message(message)
+                .status(status)
+                .build();
+    }
+
+
+    public Object authenticate(@NotNull AuthenticationRequest request) throws IOException {
+         var user =  userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new EntityNotFoundException("user not found"));
+
+        if (!isUserLockedOut(user.getUserId())) {
+            return buildResponse(request.getEmail(), HttpStatus.FORBIDDEN,
+                    "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
+        }
+
+        if (!user.isEnabled()) {
+            return buildResponse(request.getEmail(), HttpStatus.BAD_REQUEST,
+                    "This account is not enabled, verify your email with otp");
+        }
+
+        var auth = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
+        );
+
+        var claims = new HashMap<String, Object>();
+        claims.put("fullName", user.fullName());
+        var jwt = jwtService.generateToken(claims,user);
+
+        var userResponse = UserResponseDTO.builder()
+                .userId(user.getUserId())
+                .email(user.getEmail())
+                .fullName(user.fullName())
+                .build();
+        return AuthenticationResponse.builder()
+                .status(HttpStatus.OK)
+                .email(user.getEmail())
+                .message("Successfully logged in")
+                .token(jwt)
+                .user(userResponse)
+                .build();
+    }
 }

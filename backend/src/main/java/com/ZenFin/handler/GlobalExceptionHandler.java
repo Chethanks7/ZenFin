@@ -4,6 +4,7 @@ import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
@@ -118,6 +119,19 @@ public class GlobalExceptionHandler {
                                 .build()
                 );
     }
+
+//    @ExceptionHandler(Exception.class)
+//    public ResponseEntity<ExceptionResponse> handleException(@NotNull Exception ex) {
+//
+//        return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+//                .body(
+//                        ExceptionResponse.builder()
+//                                .businessErrorDescription("Internal Server Error")
+//                                .error(ex.getMessage())
+//                                .build()
+//                );
+//
+//    }
 
 
 
