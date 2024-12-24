@@ -12,18 +12,21 @@ import com.ZenFin.user.OTPTokenRepository;
 import com.ZenFin.user.User;
 import com.ZenFin.user.UserRepository;
 import jakarta.mail.MessagingException;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 
-import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
-import java.security.*;
+import java.security.Key;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -41,7 +44,6 @@ public class AuthenticationService {
     private final EmailService emailService;
 
     private static final byte MAX_FAILED_ATTEMPTS = 5;
-    private static final long LOCKOUT_TIME = 60 * 1000L;
     private final UserOtpStatusRepository userOtpStatusRepository;
 
 
@@ -54,7 +56,7 @@ public class AuthenticationService {
 
     public User register(@Valid RegistrationRequest registration) throws Exception {
         var role = roleRepository.findByName("USER")
-                .orElseThrow(() -> new IllegalArgumentException("Role is not in database"));
+                .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
 
         var user = User.builder()
                 .firstName(registration.getFirstname())
@@ -68,7 +70,7 @@ public class AuthenticationService {
 
         sendEmailToVerify(user);
         var userLockStatus = UserOtpStatus.builder()
-                .userID(user.getId())
+                .userID(user.getUserId())
                 .maxFailedAttempts(MAX_FAILED_ATTEMPTS)
                 .build();
         userOtpStatusRepository.save(userLockStatus);
@@ -89,7 +91,7 @@ public class AuthenticationService {
                 .build();
         emailService.sendMail(
                 mailInfo
-                , 587
+                ,587
         );
     }
 
@@ -159,18 +161,15 @@ public class AuthenticationService {
     public String verifyOtp(String otp, String userId) throws MessagingException {
 
 
-        var userOtpStatus = userOtpStatusRepository.findByUserID(userId);
+        UserOtpStatus userOtpStatus = userOtpStatusRepository.findByUserID(userId)
+                .orElseThrow(() -> new EntityNotFoundException("User is not found. Please register first."));
 
-        if (!isUserLockedOut(userId)) {
+
+        if (isUserLockedOut(userId)) {
             OTPToken otpToken = otpTokenRepository.findByOtp(otp)
-                    .orElseThrow(() -> new IllegalArgumentException("otp is not valid " + otp));
+                    .orElseThrow(() -> new EntityNotFoundException("otp is not valid " + otp));
 
             var user = otpToken.getUser();
-
-
-            // String decryptOtp= decryptOtp(otpToken.getOtp(),otpToken.getIvParameterSpec(), otpToken.getKey());
-
-
             byte maxAttempts = userOtpStatus.getMaxFailedAttempts();
             if (
                     !otpToken.getOtp().trim().equals(otp.trim()) ||
@@ -196,7 +195,7 @@ public class AuthenticationService {
                 } else {
                     otpTokenRepository.save(otpToken);
                     userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
-                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(LOCKOUT_TIME));
+                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(2));
                     return "you attempted maximum failed attempts. Try after one minute ";
 
                 }
@@ -212,12 +211,49 @@ public class AuthenticationService {
         }
     }
 
-    private boolean isUserLockedOut(String id) {
-        UserOtpStatus status = userOtpStatusRepository.findByUserID(id);
-        if(status.getLockTime() !=null) return status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(1));
 
-        return false;
+
+    private boolean isUserLockedOut(String id) {
+        UserOtpStatus status = userOtpStatusRepository.findByUserID(id)
+                .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
+        if(status.getLockTime() !=null) return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(1));
+
+        return true;
     }
 
+    public String resendOtp(String userId) throws Exception {
+       UserOtpStatus status =  userOtpStatusRepository.findByUserID(userId)
+                .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
+        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("something went wrong, please try again"));
+       if(isUserLockedOut(userId)) {
+           if( user.getResendAttempts()<5) {
+               String otp = generateAndSaveNewOtp(user);
+               var mailInfo = MailModel.builder()
+                       .to(user.getEmail())
+                       .username(user.fullName())
+                       .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+                       .activationCode(otp)
+                       .subject("Activate account ")
+                       .build();
+               emailService.sendMail(
+                       mailInfo, 587
+               );
+               user.setLastEmailSentTime(LocalDateTime.now());
+               user.setResendAttempts((byte) (user.getResendAttempts() + 1));
+               userRepository.save(user);
+               return "email sent to your registered email";
+           }
+           else{
+               status.setLockTime(LocalDateTime.now().plusMinutes(2));
+               user.setResendAttempts((byte) 0);
+               userOtpStatusRepository.save(status);
+               userRepository.save(user);
+               return "Your account has been locked due to multiple failed attempts. Please try again after "+
+                       status.getLockTime().getMinute()+" minutes";
+           }
+       }
+           return "Your account has been locked due to multiple failed attempts. Please try again after "+
+           status.getLockTime()+" minutes" ;
+    }
 
 }

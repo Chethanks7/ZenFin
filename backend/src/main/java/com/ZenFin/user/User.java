@@ -35,7 +35,7 @@ public class User implements UserDetails , Principal {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    private String userId;
 
     @Column(nullable = false)
     private String firstName;
@@ -81,6 +81,10 @@ public class User implements UserDetails , Principal {
     private String securityQuestion;
 
     private String securityAnswer;
+
+    private LocalDateTime lastEmailSentTime;
+
+    private byte resendAttempts;
 
     public String fullName() {
         return firstName + " " + lastName;

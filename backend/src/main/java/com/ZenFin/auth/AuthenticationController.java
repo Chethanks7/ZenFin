@@ -2,10 +2,10 @@ package com.ZenFin.auth;
 
 import com.ZenFin.user.User;
 import com.ZenFin.user.UserRegistrationDTO;
+import jakarta.mail.MessagingException;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -32,7 +32,7 @@ public class AuthenticationController {
         var userResponse = UserRegistrationDTO.builder()
                 .fullName(user.fullName())
                 .email(user.getEmail())
-                .userId(user.getId())
+                .userId(user.getUserId())
                 .build();
         return ResponseEntity.ok(RegistrationResponse.builder()
                         .message("Registration successful! Please verify your email.")
@@ -46,6 +46,13 @@ public class AuthenticationController {
 
         return  ResponseEntity.ok(service.verifyOtp(otp,userId));
 
+    }
+
+
+    @PostMapping("resend-otp")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    private ResponseEntity<?> resendEmail(@RequestParam String userId) throws Exception {
+        return ResponseEntity.ok(service.resendOtp(userId));
     }
 
 }
