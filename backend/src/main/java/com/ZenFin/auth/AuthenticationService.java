@@ -65,6 +65,9 @@ public class AuthenticationService {
         var role = roleRepository.findByName("USER")
                 .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
 
+        if(userRepository.findByEmail(registration.getEmail()).isPresent())
+            throw new Exception("Email is already registered. you can login ");
+
         var user = User.builder()
                 .firstName(registration.getFirstname())
                 .lastName(registration.getLastname())
@@ -293,14 +296,18 @@ public class AuthenticationService {
          var user =  userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("user not found"));
 
+        if (!user.isEnabled()) {
+            return buildResponse(request.getEmail(), HttpStatus.BAD_REQUEST,
+                    "This account is not enabled, verify your email with otp");
+        }
+
         if (!isUserLockedOut(user.getUserId())) {
             return buildResponse(request.getEmail(), HttpStatus.FORBIDDEN,
                     "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
         }
-
-        if (!user.isEnabled()) {
-            return buildResponse(request.getEmail(), HttpStatus.BAD_REQUEST,
-                    "This account is not enabled, verify your email with otp");
+        if(!user.isEmailVerified()) {
+            return buildResponse(request.getEmail(), HttpStatus.UNAUTHORIZED,
+                    "verify your email before entering password");
         }
 
         var auth = authenticationManager.authenticate(
