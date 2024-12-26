@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -120,18 +121,30 @@ public class GlobalExceptionHandler {
                 );
     }
 
-//    @ExceptionHandler(Exception.class)
-//    public ResponseEntity<ExceptionResponse> handleException(@NotNull Exception ex) {
-//
-//        return ResponseEntity.status(INTERNAL_SERVER_ERROR)
-//                .body(
-//                        ExceptionResponse.builder()
-//                                .businessErrorDescription("Internal Server Error")
-//                                .error(ex.getMessage())
-//                                .build()
-//                );
-//
-//    }
+    @ExceptionHandler(SQLException.class)
+    public ResponseEntity<ExceptionResponse> handleException(@NotNull SQLException ex) {
+        return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+                .body(
+                        ExceptionResponse.builder()
+                                .businessErrorDescription("Internal Server Error")
+                                .error(ex.getMessage())
+                                .build()
+                );
+
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ExceptionResponse> handleException(@NotNull Exception ex) {
+
+        return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+                .body(
+                        ExceptionResponse.builder()
+                                .businessErrorDescription("Internal Server Error")
+                                .error(ex.getMessage())
+                                .build()
+                );
+
+    }
 
 
 
