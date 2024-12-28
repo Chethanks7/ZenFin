@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 
 @RestController
 @RequestMapping("/auth")
@@ -81,11 +82,11 @@ public class AuthenticationController {
     public ResponseEntity<?> authenticate(
             @RequestBody
             AuthenticationRequest request
-    ) throws IOException {
+    ) throws IOException, ExecutionException, InterruptedException {
         var response = service.authenticate(request);
-        var data = response instanceof AuthenticationResponse ? (AuthenticationResponse) response : (EmailAuthResponse) response;
-        return ResponseEntity.status(data.getStatus()).body(
-                data
+        HttpStatus status = response instanceof AuthenticationResponse ?((AuthenticationResponse) response).getStatus() :((EmailAuthResponse) response).getStatus();
+        return ResponseEntity.status(status).body(
+                response
         );
     }
 }

@@ -34,7 +34,7 @@
         @Column(unique = true, nullable = false) // Specifies that the name must be unique and cannot be null.
         private String name; // Name of the role (e.g., "USER", "ADMIN").
 
-        @ManyToMany(fetch = FetchType.LAZY, // Defines a many-to-many relationship with the User entity.
+        @ManyToMany(fetch = FetchType.EAGER, // Defines a many-to-many relationship with the User entity.
                 cascade = {CascadeType.DETACH, CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH}, // Specifies cascade operations.
                 mappedBy = "roles") // Specifies that this side is the inverse of the relationship.
         @JsonIgnore // Prevents serialization of the users list to avoid circular references.
