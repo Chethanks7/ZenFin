@@ -8,7 +8,10 @@ import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
 import com.ZenFin.security.UserOtpStatus;
 import com.ZenFin.security.UserOtpStatusRepository;
-import com.ZenFin.user.*;
+import com.ZenFin.user.OTPToken;
+import com.ZenFin.user.OTPTokenRepository;
+import com.ZenFin.user.User;
+import com.ZenFin.user.UserRepository;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -32,8 +35,12 @@ import java.io.IOException;
 import java.security.Key;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Service
 @RequiredArgsConstructor
@@ -48,7 +55,7 @@ public class AuthenticationService {
     private final BCryptPasswordEncoder passwordEncoder;
 
     private static final byte MAX_FAILED_ATTEMPTS = 5;
-    private static final long MAX_LOCKOUT_TIME = 5*60*1000L;
+    private static final long MAX_LOCKOUT_TIME = 5 * 60 * 1000L;
     private final UserOtpStatusRepository userOtpStatusRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -65,7 +72,7 @@ public class AuthenticationService {
         var role = roleRepository.findByName("USER")
                 .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
 
-        if(userRepository.findByEmail(registration.getEmail()).isPresent())
+        if (userRepository.findByEmail(registration.getEmail()).isPresent())
             throw new Exception("Email is already registered. you can login ");
 
         var user = User.builder()
@@ -84,7 +91,7 @@ public class AuthenticationService {
                 .maxFailedAttempts(MAX_FAILED_ATTEMPTS)
                 .build();
         userOtpStatusRepository.save(userLockStatus);
-       return  userRepository.save(user);
+        return userRepository.save(user);
 
     }
 
@@ -101,7 +108,7 @@ public class AuthenticationService {
                 .build();
         emailService.sendMail(
                 mailInfo
-                ,587
+                , 587
         );
     }
 
@@ -203,7 +210,7 @@ public class AuthenticationService {
                     userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
                     userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(MAX_LOCKOUT_TIME));
                     userOtpStatusRepository.save(userOtpStatus);
-                    return "you attempted maximum failed attempts. Try after "+userOtpStatus.getLockTime().getMinute()+" minute ";
+                    return "you attempted maximum failed attempts. Try after " + userOtpStatus.getLockTime().getMinute() + " minute ";
                 }
             }
 
@@ -218,48 +225,47 @@ public class AuthenticationService {
     }
 
 
-
     private boolean isUserLockedOut(String id) {
         UserOtpStatus status = userOtpStatusRepository.findByUserID(id)
                 .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
-        if(status.getLockTime() !=null) return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(MAX_LOCKOUT_TIME));
+        if (status.getLockTime() != null)
+            return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(MAX_LOCKOUT_TIME));
 
         return true;
     }
 
     public String resendOtp(String userId) throws Exception {
-       UserOtpStatus status =  userOtpStatusRepository.findByUserID(userId)
+        UserOtpStatus status = userOtpStatusRepository.findByUserID(userId)
                 .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
         User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("something went wrong, please try again"));
-       if(isUserLockedOut(userId)) {
-           if( user.getResendAttempts()<5) {
-               String otp = generateAndSaveNewOtp(user);
-               var mailInfo = MailModel.builder()
-                       .to(user.getEmail())
-                       .username(user.fullName())
-                       .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
-                       .activationCode(otp)
-                       .subject("Activate account ")
-                       .build();
-               emailService.sendMail(
-                       mailInfo, 587
-               );
-               user.setLastEmailSentTime(LocalDateTime.now());
-               user.setResendAttempts((byte) (user.getResendAttempts() + 1));
-               userRepository.save(user);
-               return "email sent to your registered email";
-           }
-           else{
-               status.setLockTime(LocalDateTime.now().plusMinutes(2));
-               user.setResendAttempts((byte) 0);
-               userOtpStatusRepository.save(status);
-               userRepository.save(user);
-               return "Your account has been locked due to multiple failed attempts. Please try again after "+
-                       status.getLockTime().getMinute()+" minutes";
-           }
-       }
-           return "Your account has been locked due to multiple failed attempts. Please try again after "+
-           status.getLockTime()+" minutes" ;
+        if (isUserLockedOut(userId)) {
+            if (user.getResendAttempts() < 5) {
+                String otp = generateAndSaveNewOtp(user);
+                var mailInfo = MailModel.builder()
+                        .to(user.getEmail())
+                        .username(user.fullName())
+                        .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+                        .activationCode(otp)
+                        .subject("Activate account ")
+                        .build();
+                emailService.sendMail(
+                        mailInfo, 587
+                );
+                user.setLastEmailSentTime(LocalDateTime.now());
+                user.setResendAttempts((byte) (user.getResendAttempts() + 1));
+                userRepository.save(user);
+                return "email sent to your registered email";
+            } else {
+                status.setLockTime(LocalDateTime.now().plusMinutes(2));
+                user.setResendAttempts((byte) 0);
+                userOtpStatusRepository.save(status);
+                userRepository.save(user);
+                return "Your account has been locked due to multiple failed attempts. Please try again after " +
+                        status.getLockTime().getMinute() + " minutes";
+            }
+        }
+        return "Your account has been locked due to multiple failed attempts. Please try again after " +
+                status.getLockTime() + " minutes";
     }
 
     public EmailAuthResponse verifyEmail(String email) {
@@ -292,8 +298,9 @@ public class AuthenticationService {
     }
 
 
-    public Object authenticate(@NotNull AuthenticationRequest request) throws IOException {
-         var user =  userRepository.findByEmail(request.getEmail())
+    public Object authenticate(@NotNull AuthenticationRequest request) throws IOException, ExecutionException, InterruptedException {
+        long startTime = System.currentTimeMillis();
+        var user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("user not found"));
 
         if (!user.isEnabled()) {
@@ -305,33 +312,48 @@ public class AuthenticationService {
             return buildResponse(request.getEmail(), HttpStatus.FORBIDDEN,
                     "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
         }
-        if(!user.isEmailVerified()) {
+        if (!user.isEmailVerified()) {
             return buildResponse(request.getEmail(), HttpStatus.UNAUTHORIZED,
                     "verify your email before entering password");
         }
 
-        var auth = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
-        );
 
-        var claims = new HashMap<String, Object>();
-        claims.put("fullName", user.fullName());
-        var jwt = jwtService.generateToken(claims,user);
+        CompletableFuture<Boolean> authFuture = CompletableFuture.supplyAsync(() -> {
+            authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+            return true;
+        });
 
-        var userResponse = UserResponseDTO.builder()
-                .userId(user.getUserId())
-                .email(user.getEmail())
-                .fullName(user.fullName())
-                .build();
+        CompletableFuture<String> jwtFuture = CompletableFuture.supplyAsync(() -> {
+            var claims = new HashMap<String, Object>();
+            claims.put("fullName", user.fullName());
+            claims.put("UserID", user.getUserId());
+            try {
+                return jwtService.generateToken(claims, user);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+
+
+        CompletableFuture.allOf(authFuture, jwtFuture).join();
+        long endTime = System.currentTimeMillis();
+        System.err.println("Step took"+(endTime - startTime)+"ms");
+        updateUserProfile(user);
+
         return AuthenticationResponse.builder()
                 .status(HttpStatus.OK)
-                .email(user.getEmail())
                 .message("Successfully logged in")
-                .token(jwt)
-                .user(userResponse)
+                .token(jwtFuture.get())
                 .build();
+    }
+
+    @Async
+    public void updateUserProfile(User user) {
+        user.setResendAttempts((byte) 0);
+        user.setFailedLoginAttempts((byte) 0);
+        user.setLastLogin(LocalDateTime.now());
+        userRepository.save(user);
     }
 }
