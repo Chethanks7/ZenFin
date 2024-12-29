@@ -1,0 +1,71 @@
+<div class="container">
+    <div class="form-container">
+        <mat-stepper #stepper [linear]="true">
+            <mat-step [stepControl]="firstFormGroup" errorMessage="Details are required.">
+                <form [formGroup]="firstFormGroup">
+                    <ng-template matStepLabel>Fill out your name</ng-template>
+
+                    <mat-form-field>
+                        <mat-label>First Name</mat-label>
+                        <input matInput placeholder="First name" formControlName="firstName" required>
+                        <mat-error *ngIf="firstFormGroup.get('firstName')?.hasError('required')">
+                            First Name is required
+                        </mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field>
+                        <mat-label>Last Name</mat-label>
+                        <input matInput placeholder="Last name" formControlName="lastName" required>
+                        <mat-error *ngIf="firstFormGroup.get('lastName')?.hasError('required')">
+                            Last Name is required
+                        </mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field>
+                        <mat-label>Email</mat-label>
+                        <input matInput placeholder="Email" formControlName="email" required email>
+                        <mat-error *ngIf="firstFormGroup.get('email')?.hasError('required')">
+                            Email is required
+                        </mat-error>
+                        <mat-error *ngIf="firstFormGroup.get('email')?.hasError('email')">
+                            Enter a valid email
+                        </mat-error>
+                    </mat-form-field>
+
+                    <mat-form-field>
+                        <mat-label>Password</mat-label>
+                        <input matInput placeholder="Password" formControlName="password" required>
+                        <mat-error *ngIf="firstFormGroup.get('password')?.hasError('required')">
+                            Password is required
+                        </mat-error>
+                    </mat-form-field>
+
+                    <div>
+                        <button mat-button matStepperNext (click)="onRegister()"  [disabled]="firstFormGroup.invalid">Register</button>
+                    </div>
+                </form>
+            </mat-step>
+
+            <mat-step [stepControl]="secondFormGroup" errorMessage="Email Verification is required.">
+                <form [formGroup]="secondFormGroup">
+                    <ng-template matStepLabel>Fill out your address</ng-template>
+                    <ng-otp-input [config]="otpConfig" formControlName="otp"></ng-otp-input>
+
+
+                    <div>
+                        <button mat-button>Resend</button>
+                        <button mat-button matStepperNext [disabled]="secondFormGroup.invalid">Verify</button>
+                    </div>
+                </form>
+            </mat-step>
+
+            <mat-step>
+                <ng-template matStepLabel>Done</ng-template>
+                <p>You are now done.</p>
+                <div>
+                    <button mat-button (click)="stepper.reset()">Reset</button>
+                </div>
+            </mat-step>
+        </mat-stepper>
+    </div>
+</div>
