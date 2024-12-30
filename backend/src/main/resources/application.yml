@@ -39,7 +39,7 @@ application:
   security:
     secreteName: ZenKey
     jwt:
-      expiration: 8640000
+      expiration: 86400000
 
 springdoc:
   default-produces-media-type: application/json
@@ -47,7 +47,9 @@ springdoc:
 server:
   servlet:
     context-path: /api/v1
+
   port: 8088
+
 
 
 #logging:

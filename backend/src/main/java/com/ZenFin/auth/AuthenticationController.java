@@ -23,6 +23,10 @@ public class AuthenticationController {
         this.service = service;
     }
 
+    @GetMapping("/test")
+    public String getTest(){
+        return "test passed";
+    }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.ACCEPTED)
