@@ -1,5 +1,9 @@
 package com.ZenFin.user;
 
+import com.ZenFin.dashboard.budget.Budget;
+import com.ZenFin.dashboard.exapanse.Expense;
+import com.ZenFin.dashboard.income.Income;
+import com.ZenFin.dashboard.transaction.Transaction;
 import com.ZenFin.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
@@ -87,6 +91,18 @@ public class User implements UserDetails , Principal {
     private LocalDateTime lastEmailSentTime;
 
     private byte resendAttempts;
+
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Transaction> transactions;
+
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Income> incomes;
+
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Expense> expenses;
+
+  @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+  private List<Budget> budgets;
 
     public String fullName() {
         return firstName + " " + lastName;
