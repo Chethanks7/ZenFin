@@ -28,4 +28,10 @@ public class ExpenseDTO {
   @Valid
   @NotNull(message = "Date format is not matched")
   private LocalDate date;
+
+  private boolean recurring;
+
+  private String recurrenceFrequency;
+
+  private LocalDate nextDueDate;
 }

@@ -24,8 +24,11 @@ public class ExpenseService {
       .category(expense.getCategory())
       .date(expense.getDate())
       .user(user)
-      .recurring(true)
+      .recurring(expense.isRecurring())
+      .recurrenceFrequency(expense.getRecurrenceFrequency())
+      .nextDueDate(expense.getNextDueDate())
       .build();
+    
     expanseRepository.save(expanseData);
     return ExpenseResponse.builder()
       .amount(expense.getAmount())
