@@ -1,4 +1,4 @@
-package com.ZenFin.dashboard.exapanse;
+package com.ZenFin.dashboard.expanse;
 
 import com.ZenFin.user.User;
 import jakarta.persistence.*;
@@ -31,8 +31,8 @@ public class Expense {
   private String category;
   private LocalDate date;
   private boolean recurring;
-
-
+  private String recurrenceFrequency;
+  private LocalDate nextDueDate;
 
 
 }

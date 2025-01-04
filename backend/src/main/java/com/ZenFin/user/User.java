@@ -1,29 +1,24 @@
 package com.ZenFin.user;
 
 import com.ZenFin.dashboard.budget.Budget;
-import com.ZenFin.dashboard.exapanse.Expense;
+import com.ZenFin.dashboard.expanse.Expense;
 import com.ZenFin.dashboard.income.Income;
 import com.ZenFin.dashboard.transaction.Transaction;
 import com.ZenFin.role.Role;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.nio.file.attribute.UserPrincipal;
 import java.security.Principal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 
