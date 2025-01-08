@@ -30,6 +30,10 @@ spring:
           enable: true
     host: smtp.gmail.com
     port: 587
+  data:
+    redis:
+      host: localhost # Replace with your Redis server hostname or IP
+      port: 6379      # Default Redis port
 
 
 

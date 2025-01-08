@@ -21,7 +21,4 @@ public class DashboardSummary {
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private UUID id;
 
-
-
-
 }

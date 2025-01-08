@@ -5,12 +5,12 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.util.List;
 
-@Setter
+
 @Getter
-@RequiredArgsConstructor
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class MonthlyTrends {
   @NonNull
   private List<BigDecimal> incomes;

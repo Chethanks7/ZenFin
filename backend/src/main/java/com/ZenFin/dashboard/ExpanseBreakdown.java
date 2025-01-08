@@ -7,12 +7,11 @@ import lombok.*;
 
 import java.util.List;
 
-@Setter
 @Getter
-@RequiredArgsConstructor
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class ExpanseBreakdown {
 
   @NotNull

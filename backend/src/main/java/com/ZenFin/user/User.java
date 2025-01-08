@@ -99,7 +99,7 @@ public class User implements UserDetails , Principal {
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<Budget> budgets;
 
-    public String fullName() {
+    public String getFullName() {
         return firstName + " " + lastName;
     }
 

@@ -3,6 +3,7 @@ package com.ZenFin.auth;
 import com.ZenFin.email.EmailService;
 import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.email.MailModel;
+import com.ZenFin.redis.RedisService;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
@@ -39,6 +40,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -53,12 +55,14 @@ public class AuthenticationService {
     private final EncryptionKey encryptionKey;
     private final EmailService emailService;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final RedisService redisService;
 
     private static final byte MAX_FAILED_ATTEMPTS = 5;
     private static final long MAX_LOCKOUT_TIME = 5 * 60 * 1000L;
     private final UserOtpStatusRepository userOtpStatusRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    
 
 
     @Value("${application.security.secreteName}")
@@ -101,7 +105,7 @@ public class AuthenticationService {
 
         var mailInfo = MailModel.builder()
                 .to(user.getEmail())
-                .username(user.fullName())
+                .username(user.getFullName())
                 .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
                 .activationCode(newOtp)
                 .subject("Activate account ")
@@ -193,7 +197,7 @@ public class AuthenticationService {
                     String newOtp = generateOtp();
                     var mailInfo = MailModel.builder()
                             .to(user.getEmail())
-                            .username(user.fullName())
+                            .username(user.getFullName())
                             .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
                             .activationCode(newOtp)
                             .subject("Activate account ")
@@ -243,7 +247,7 @@ public class AuthenticationService {
                 String otp = generateAndSaveNewOtp(user);
                 var mailInfo = MailModel.builder()
                         .to(user.getEmail())
-                        .username(user.fullName())
+                        .username(user.getFullName())
                         .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
                         .activationCode(otp)
                         .subject("Activate account ")
@@ -299,7 +303,7 @@ public class AuthenticationService {
 
 
     public Object authenticate(@NotNull AuthenticationRequest request) throws IOException, ExecutionException, InterruptedException {
-        long startTime = System.currentTimeMillis();
+        
         var user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("user not found"));
 
@@ -323,10 +327,9 @@ public class AuthenticationService {
                     new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
             return true;
         });
-
         CompletableFuture<String> jwtFuture = CompletableFuture.supplyAsync(() -> {
             var claims = new HashMap<String, Object>();
-            claims.put("fullName", user.fullName());
+            claims.put("fullName", user.getFullName());
             claims.put("UserID", user.getUserId());
             try {
                 return jwtService.generateToken(claims, user);
@@ -337,10 +340,10 @@ public class AuthenticationService {
 
 
 
-        CompletableFuture.allOf(authFuture, jwtFuture).join();
-        long endTime = System.currentTimeMillis();
-        System.err.println("Step took"+(endTime - startTime)+"ms");
+        CompletableFuture.allOf(authFuture, jwtFuture).join();    
         updateUserProfile(user);
+        redisService.set("userId", user.getUserId(), 3600*24L);
+        redisService.set("fullname", user.getFullName(), 3600*24L);
 
         return AuthenticationResponse.builder()
                 .status(HttpStatus.OK)

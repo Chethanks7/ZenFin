@@ -2,12 +2,11 @@ package com.ZenFin.dashboard;
 
 import lombok.*;
 
-@Setter
 @Getter
-@RequiredArgsConstructor
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class OverviewResponse {
 
   private String status;

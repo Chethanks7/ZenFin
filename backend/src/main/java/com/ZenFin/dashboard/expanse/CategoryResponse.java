@@ -2,12 +2,11 @@ package com.ZenFin.dashboard.expanse;
 
 import lombok.*;
 
-@Setter
 @Getter
-@RequiredArgsConstructor
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class CategoryResponse {
 
   private String name ;

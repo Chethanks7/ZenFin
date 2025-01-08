@@ -5,12 +5,11 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-@Setter
 @Getter
-@RequiredArgsConstructor
+@Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class TransactionResponse {
   private String type;
   private String category;
