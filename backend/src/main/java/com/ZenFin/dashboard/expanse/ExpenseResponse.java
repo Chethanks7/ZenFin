@@ -18,7 +18,7 @@ public class ExpenseResponse {
   @NotNull
   private String category;
   @NotNull
-  private LocalDate date;
+  private String date;
   @NotNull
   private String userId;
 }

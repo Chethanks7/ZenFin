@@ -3,7 +3,6 @@ package com.ZenFin.auth;
 import com.ZenFin.email.EmailService;
 import com.ZenFin.email.EmailTemplateName;
 import com.ZenFin.email.MailModel;
-import com.ZenFin.redis.RedisService;
 import com.ZenFin.role.RoleRepository;
 import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
@@ -40,9 +39,7 @@ import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Service
 @RequiredArgsConstructor
@@ -55,14 +52,12 @@ public class AuthenticationService {
     private final EncryptionKey encryptionKey;
     private final EmailService emailService;
     private final BCryptPasswordEncoder passwordEncoder;
-    private final RedisService redisService;
-
     private static final byte MAX_FAILED_ATTEMPTS = 5;
     private static final long MAX_LOCKOUT_TIME = 5 * 60 * 1000L;
     private final UserOtpStatusRepository userOtpStatusRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
-    
+
 
 
     @Value("${application.security.secreteName}")
@@ -73,7 +68,7 @@ public class AuthenticationService {
     private String activationUrl;
 
     public User register(@Valid RegistrationRequest registration) throws Exception {
-        var role = roleRepository.findByName("USER")
+        var role = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
 
         if (userRepository.findByEmail(registration.getEmail()).isPresent())
@@ -157,15 +152,19 @@ public class AuthenticationService {
                         key
                         , iv)
                 )
-                .key(Base64.getEncoder().encodeToString(key.getEncoded()))
                 .ivParameterSpec(Base64.getEncoder().encodeToString(iv.getIV()))
                 .user(user)
                 .createTime(LocalDateTime.now())
                 .expireTime(LocalDateTime.now().plusMinutes(15))
                 .build();
-        otpTokenRepository.save(otpToken);
+      saveOtpTokenAsync(otpToken);
         return otp;
     }
+
+  @Async
+  public void saveOtpTokenAsync(OTPToken otpToken) {
+    otpTokenRepository.save(otpToken);
+  }
 
     private String generateOtp() {
         String otpNumbers = "0123456789";
@@ -302,8 +301,8 @@ public class AuthenticationService {
     }
 
 
-    public Object authenticate(@NotNull AuthenticationRequest request) throws IOException, ExecutionException, InterruptedException {
-        
+    public Object authenticate(@NotNull AuthenticationRequest request) throws Exception {
+
         var user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new EntityNotFoundException("user not found"));
 
@@ -330,7 +329,7 @@ public class AuthenticationService {
         CompletableFuture<String> jwtFuture = CompletableFuture.supplyAsync(() -> {
             var claims = new HashMap<String, Object>();
             claims.put("fullName", user.getFullName());
-            claims.put("UserID", user.getUserId());
+            claims.put("UserId", user.getUserId());
             try {
                 return jwtService.generateToken(claims, user);
             } catch (IOException e) {
@@ -340,10 +339,8 @@ public class AuthenticationService {
 
 
 
-        CompletableFuture.allOf(authFuture, jwtFuture).join();    
+        CompletableFuture.allOf(authFuture, jwtFuture).join();
         updateUserProfile(user);
-        redisService.set("userId", user.getUserId(), 3600*24L);
-        redisService.set("fullname", user.getFullName(), 3600*24L);
 
         return AuthenticationResponse.builder()
                 .status(HttpStatus.OK)

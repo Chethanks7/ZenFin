@@ -1,6 +1,7 @@
 package com.ZenFin.dashboard.api;
 
 import lombok.*;
+import org.springframework.http.HttpStatus;
 
 @Getter
 @Setter
@@ -8,7 +9,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class ApiResponse<T> {
-  private int statusCode;
+  private HttpStatus statusCode;
   private String message;
   private T data;
 }

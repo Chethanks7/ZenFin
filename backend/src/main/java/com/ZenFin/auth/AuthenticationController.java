@@ -38,7 +38,7 @@ public class AuthenticationController {
         User user = service.register(registration);
 
         var userResponse = UserResponseDTO.builder()
-                .fullName(user.fullName())
+                .fullName(user.getFullName())
                 .email(user.getEmail())
                 .userId(user.getUserId())
                 .build();
@@ -86,7 +86,7 @@ public class AuthenticationController {
     public ResponseEntity<?> authenticate(
             @RequestBody
             AuthenticationRequest request
-    ) throws IOException, ExecutionException, InterruptedException {
+    ) throws Exception {
         var response = service.authenticate(request);
         HttpStatus status = response instanceof AuthenticationResponse ?((AuthenticationResponse) response).getStatus() :((EmailAuthResponse) response).getStatus();
         return ResponseEntity.status(status).body(

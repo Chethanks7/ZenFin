@@ -3,8 +3,10 @@ package com.ZenFin.user;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.sql.Update;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.io.Serializable;
 import java.security.Key;
 import java.time.LocalDateTime;
 
@@ -15,7 +17,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class OTPToken {
+public class OTPToken implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -31,11 +33,7 @@ public class OTPToken {
     private String ivParameterSpec;
 
     @Column(nullable = false)
-    private String key;
-
-    @Column(nullable = false)
     private LocalDateTime expireTime;
-
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false, targetEntity = User.class, cascade = CascadeType.ALL)
     @JoinColumn(name = "user_id", nullable = false)

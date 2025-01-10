@@ -25,9 +25,7 @@ public class ExpenseDTO {
   @NotNull(message = "Category cannot be empty")
   private String category;
 
-  @Valid
-  @NotNull(message = "Date format is not matched")
-  private LocalDate date;
+  private String date;
 
   private boolean recurring;
 

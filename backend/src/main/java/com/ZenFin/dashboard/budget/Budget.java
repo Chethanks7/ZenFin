@@ -7,6 +7,7 @@ import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
@@ -19,18 +20,18 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Budget {
+public class Budget implements Serializable {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.AUTO)
-  private UUID budgetId;
+  @GeneratedValue(strategy = GenerationType.UUID)
+  private String id;
 
   @ManyToOne
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
-  private BigDecimal amount;  // Set budget amount
-  private int month;          // 1 to 12
+  private BigDecimal amount;
+  private int month;
   private int year;
   @CreatedDate
   private LocalDate createdAt;
