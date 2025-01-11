@@ -14,6 +14,8 @@ import java.time.LocalDate;
 public class ExpenseResponse {
 
   @NotNull
+  private String id;
+  @NotNull
   private BigDecimal amount;
   @NotNull
   private String category;

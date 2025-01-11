@@ -22,15 +22,11 @@ public class OTPToken implements Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-
     @Column(nullable = false)
     private String otp;
 
     @Column(nullable = false)
     private LocalDateTime createTime;
-
-    @Column(nullable = false)
-    private String ivParameterSpec;
 
     @Column(nullable = false)
     private LocalDateTime expireTime;

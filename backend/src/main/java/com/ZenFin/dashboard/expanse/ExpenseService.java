@@ -4,6 +4,7 @@ import com.ZenFin.dashboard.api.ApiResponse;
 import com.ZenFin.user.User;
 import com.ZenFin.user.UserRepository;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,6 +17,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,6 +47,7 @@ public class ExpenseService {
 
     return ExpenseResponse.builder()
       .amount(expense.getAmount())
+      .id(expenseData.getId())
       .category(expense.getCategory())
       .date(expense.getDate())
       .userId(user.getUserId())
@@ -89,5 +93,19 @@ public class ExpenseService {
     body.setStatusCode(HttpStatus.OK);
 
     return body;
+  }
+
+  public String deleteExpenseById(String id) {
+    var expanse = expanseRepository.findById(id).orElseThrow(
+      ()-> new IllegalStateException("expense is not present in this id")
+    );
+
+    if(ChronoUnit.HOURS.between(expanse.getCreatedTime(), LocalDateTime.now())>=24)
+      throw new IllegalStateException("Expenses older than 24 hours cannot be deleted.");
+
+    expanseRepository.delete(expanse);
+    return "expense has been deleted successfully";
+
+
   }
 }

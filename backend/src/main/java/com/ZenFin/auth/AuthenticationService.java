@@ -8,10 +8,7 @@ import com.ZenFin.security.EncryptionKey;
 import com.ZenFin.security.JwtService;
 import com.ZenFin.security.UserOtpStatus;
 import com.ZenFin.security.UserOtpStatusRepository;
-import com.ZenFin.user.OTPToken;
-import com.ZenFin.user.OTPTokenRepository;
-import com.ZenFin.user.User;
-import com.ZenFin.user.UserRepository;
+import com.ZenFin.user.*;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -20,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -46,314 +44,324 @@ import java.util.concurrent.CompletableFuture;
 @Transactional
 public class AuthenticationService {
 
-    private final RoleRepository roleRepository;
-    private final UserRepository userRepository;
-    private final OTPTokenRepository otpTokenRepository;
-    private final EncryptionKey encryptionKey;
-    private final EmailService emailService;
-    private final BCryptPasswordEncoder passwordEncoder;
-    private static final byte MAX_FAILED_ATTEMPTS = 5;
-    private static final long MAX_LOCKOUT_TIME = 5 * 60 * 1000L;
-    private final UserOtpStatusRepository userOtpStatusRepository;
-    private final AuthenticationManager authenticationManager;
-    private final JwtService jwtService;
+  private final RoleRepository roleRepository;
+  private final UserRepository userRepository;
+  private final OTPTokenRepository otpTokenRepository;
+  private final EncryptionKey encryptionKey;
+  private final EmailService emailService;
+  private final BCryptPasswordEncoder passwordEncoder;
+  private static final byte MAX_FAILED_ATTEMPTS = 5;
+  private static final long MAX_LOCKOUT_TIME = 5 * 60 * 1000L;
+  private final UserOtpStatusRepository userOtpStatusRepository;
+  private final AuthenticationManager authenticationManager;
+  private final JwtService jwtService;
+
+  private String iv;
 
 
-
-    @Value("${application.security.secreteName}")
-    private String secretName;
-
-
-    @Value("${spring.mailing.frontend.activation-url}")
-    private String activationUrl;
-
-    public User register(@Valid RegistrationRequest registration) throws Exception {
-        var role = roleRepository.findByName("ROLE_USER")
-                .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
-
-        if (userRepository.findByEmail(registration.getEmail()).isPresent())
-            throw new Exception("Email is already registered. you can login ");
-
-        var user = User.builder()
-                .firstName(registration.getFirstname())
-                .lastName(registration.getLastname())
-                .email(registration.getEmail())
-                .password(passwordEncoder.encode(registration.getPassword()))// later add encoding the password
-                .accountLocked(false)
-                .roles(new ArrayList<>(List.of(role)))
-                .build();
+  @Value("${application.security.secreteName}")
+  private String secretName;
 
 
-        sendEmailToVerify(user);
-        var userLockStatus = UserOtpStatus.builder()
-                .userID(user.getUserId())
-                .maxFailedAttempts(MAX_FAILED_ATTEMPTS)
-                .build();
-        userOtpStatusRepository.save(userLockStatus);
-        return userRepository.save(user);
+  @Value("${spring.mailing.frontend.activation-url}")
+  private String activationUrl;
 
-    }
+  public RegistrationResponse register(@Valid RegistrationRequest registration) throws Exception {
+    var role = roleRepository.findByName("ROLE_USER")
+      .orElseThrow(() -> new EntityNotFoundException("Role is not in database"));
 
-    private void sendEmailToVerify(User user) throws Exception {
+    if (userRepository.findByEmail(registration.getEmail()).isPresent())
+      throw new Exception("Email is already registered. you can login ");
 
-        var newOtp = generateAndSaveNewOtp(user);
-
-        var mailInfo = MailModel.builder()
-                .to(user.getEmail())
-                .username(user.getFullName())
-                .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
-                .activationCode(newOtp)
-                .subject("Activate account ")
-                .build();
-        emailService.sendMail(
-                mailInfo
-                , 587
-        );
-    }
+    var user = User.builder()
+      .firstName(registration.getFirstname())
+      .lastName(registration.getLastname())
+      .email(registration.getEmail())
+      .password(passwordEncoder.encode(registration.getPassword()))// later add encoding the password
+      .accountLocked(false)
+      .roles(new ArrayList<>(List.of(role)))
+      .build();
 
 
-    public IvParameterSpec generateIv() {
-        byte[] keyBytes = new byte[16]; // For 128-bit AES
-        new SecureRandom().nextBytes(keyBytes);
-        return new IvParameterSpec(keyBytes);
+    sendEmailToVerify(user);
+    var userLockStatus = UserOtpStatus.builder()
+      .userID(user.getUserId())
+      .maxFailedAttempts(MAX_FAILED_ATTEMPTS)
+      .build();
+    userOtpStatusRepository.save(userLockStatus);
+    userRepository.save(user);
+    var userResponse = UserResponseDTO.builder()
+      .fullName(user.getFullName())
+      .email(user.getEmail())
+      .userId(user.getUserId())
+      .build();
 
-    }
+    return RegistrationResponse.builder()
+        .message("Otp sent successfully, verify that for registration")
+        .userRegistrationDTO(userResponse)
+        .iv(iv)
+      .build();
+  }
 
-    public SecretKey generateKey() throws Exception {
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(256); // 256-bit AES key
-        return keyGen.generateKey();
-    }
+  private void sendEmailToVerify(User user) throws Exception {
 
-    public String encryptedOtp(String otp, Key key, IvParameterSpec iv) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, key, iv);
-        byte[] encryptedOtp = cipher.doFinal(otp.getBytes());
-        return Base64.getEncoder().encodeToString(encryptedOtp);
-    }
+    var newOtp = generateAndSaveNewOtp(user);
 
-    public Key getKey() throws IOException {
-        String base64EncodedKey = encryptionKey.getEncryptionKey(secretName);
-        byte[] keyBytes = Base64.getDecoder().decode(base64EncodedKey);
-        return new SecretKeySpec(keyBytes, "AES");
-    }
+    var mailInfo = MailModel.builder()
+      .to(user.getEmail())
+      .username(user.getFullName())
+      .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+      .activationCode(newOtp)
+      .subject("Activate account ")
+      .build();
+    emailService.sendMail(
+      mailInfo
+      , 587
+    );
+  }
 
 
-    private String generateAndSaveNewOtp(User user) throws Exception {
-        String otp = generateOtp();
+  public IvParameterSpec generateIv() {
+    byte[] keyBytes = new byte[16]; // For 128-bit AES
+    new SecureRandom().nextBytes(keyBytes);
+    return new IvParameterSpec(keyBytes);
+
+  }
+
+  public SecretKey generateKey() throws Exception {
+    KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+    keyGen.init(256); // 256-bit AES key
+    return keyGen.generateKey();
+  }
+
+  public String encryptedOtp(String otp, Key key, IvParameterSpec iv) throws Exception {
+    Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+    cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+    byte[] encryptedOtp = cipher.doFinal(otp.getBytes());
+    return Base64.getEncoder().encodeToString(encryptedOtp);
+  }
+
+  public Key getKey() throws IOException {
+    String base64EncodedKey = encryptionKey.getEncryptionKey(secretName);
+    byte[] keyBytes = Base64.getDecoder().decode(base64EncodedKey);
+    return new SecretKeySpec(keyBytes, "AES");
+  }
 
 
-        //here before storing opt to the database, should be encrypted
+  private String generateAndSaveNewOtp(User user) throws Exception {
+    String otp = generateOtp();
 
-        IvParameterSpec iv = generateIv();
-        Key key = getKey();
-        var otpToken = OTPToken.builder()
-                .otp(encryptedOtp(otp,
-                        key
-                        , iv)
-                )
-                .ivParameterSpec(Base64.getEncoder().encodeToString(iv.getIV()))
-                .user(user)
-                .createTime(LocalDateTime.now())
-                .expireTime(LocalDateTime.now().plusMinutes(15))
-                .build();
-      saveOtpTokenAsync(otpToken);
-        return otp;
-    }
+
+    //here before storing opt to the database, should be encrypted
+
+    IvParameterSpec ivParameterSpec = generateIv();
+    iv = Base64.getEncoder().encodeToString(ivParameterSpec.getIV());
+    Key key = getKey();
+    var otpToken = OTPToken.builder()
+      .otp(encryptedOtp(otp,
+        key
+        , ivParameterSpec)
+      )
+      .user(user)
+      .createTime(LocalDateTime.now())
+      .expireTime(LocalDateTime.now().plusMinutes(15))
+      .build();
+    saveOtpTokenAsync(otpToken);
+    return otp;
+  }
 
   @Async
   public void saveOtpTokenAsync(OTPToken otpToken) {
     otpTokenRepository.save(otpToken);
   }
 
-    private String generateOtp() {
-        String otpNumbers = "0123456789";
-        StringBuilder otp = new StringBuilder();
-        SecureRandom random = new SecureRandom();
+  private String generateOtp() {
+    String otpNumbers = "0123456789";
+    StringBuilder otp = new StringBuilder();
+    SecureRandom random = new SecureRandom();
 
-        for (int i = 0; i < 6; i++) {
-            int randomIndex = random.nextInt(otpNumbers.length());
-            otp.append(otpNumbers.charAt(randomIndex));
-        }
-        return otp.toString();
+    for (int i = 0; i < 6; i++) {
+      int randomIndex = random.nextInt(otpNumbers.length());
+      otp.append(otpNumbers.charAt(randomIndex));
     }
+    return otp.toString();
+  }
 
-    public String verifyOtp(String otp, String userId) throws MessagingException {
-
-
-        UserOtpStatus userOtpStatus = userOtpStatusRepository.findByUserID(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User is not found. Please register first."));
+  public String verifyOtp(String otp, String userId) throws MessagingException {
 
 
-        if (isUserLockedOut(userId)) {
-            OTPToken otpToken = otpTokenRepository.findByOtp(otp)
-                    .orElseThrow(() -> new EntityNotFoundException("otp is not valid " + otp));
+    UserOtpStatus userOtpStatus = userOtpStatusRepository.findByUserID(userId)
+      .orElseThrow(() -> new EntityNotFoundException("User is not found. Please register first."));
 
-            var user = otpToken.getUser();
-            byte maxAttempts = userOtpStatus.getMaxFailedAttempts();
-            if (LocalDateTime.now().isAfter(otpToken.getExpireTime())) {
-                if (userOtpStatus.getMaxFailedAttempts() > 0) {
-                    String newOtp = generateOtp();
-                    var mailInfo = MailModel.builder()
-                            .to(user.getEmail())
-                            .username(user.getFullName())
-                            .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
-                            .activationCode(newOtp)
-                            .subject("Activate account ")
-                            .build();
-                    userOtpStatus.setMaxFailedAttempts(--maxAttempts);
-                    userOtpStatusRepository.save(userOtpStatus);
-                    otpTokenRepository.save(otpToken);
-                    emailService.sendMail(
-                            mailInfo
-                            , 587
-                    );
-                    return "email sent to registered email";
-                } else {
-                    userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
-                    userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(MAX_LOCKOUT_TIME));
-                    userOtpStatusRepository.save(userOtpStatus);
-                    return "you attempted maximum failed attempts. Try after " + userOtpStatus.getLockTime().getMinute() + " minute ";
-                }
-            }
 
-            user.setEnabled(true);
-            user.setUpdatedAt(LocalDateTime.now());
-            userRepository.save(user);
-            return "email verification success now you can login";
+    if (isUserLockedOut(userId)) {
+      OTPToken otpToken = otpTokenRepository.findByOtp(otp)
+        .orElseThrow(() -> new EntityNotFoundException("otp is not valid " + otp));
+
+      var user = otpToken.getUser();
+      byte maxAttempts = userOtpStatus.getMaxFailedAttempts();
+      if (LocalDateTime.now().isAfter(otpToken.getExpireTime())) {
+        if (userOtpStatus.getMaxFailedAttempts() > 0) {
+          String newOtp = generateOtp();
+          var mailInfo = MailModel.builder()
+            .to(user.getEmail())
+            .username(user.getFullName())
+            .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+            .activationCode(newOtp)
+            .subject("Activate account ")
+            .build();
+          userOtpStatus.setMaxFailedAttempts(--maxAttempts);
+          userOtpStatusRepository.save(userOtpStatus);
+          otpTokenRepository.save(otpToken);
+          emailService.sendMail(
+            mailInfo
+            , 587
+          );
+          return "email sent to registered email";
         } else {
-            return "Your account has been locked due to multiple failed login attempts. Please try again after " +
-                    userOtpStatus.getLockTime() + " minutes";
+          userOtpStatus.setMaxFailedAttempts(MAX_FAILED_ATTEMPTS);
+          userOtpStatus.setLockTime(LocalDateTime.now().plusMinutes(MAX_LOCKOUT_TIME));
+          userOtpStatusRepository.save(userOtpStatus);
+          return "you attempted maximum failed attempts. Try after " + userOtpStatus.getLockTime().getMinute() + " minute ";
         }
+      }
+
+      user.setEnabled(true);
+      user.setUpdatedAt(LocalDateTime.now());
+      userRepository.save(user);
+      return "email verification success now you can login";
+    } else {
+      return "Your account has been locked due to multiple failed login attempts. Please try again after " +
+        userOtpStatus.getLockTime() + " minutes";
     }
+  }
 
 
-    private boolean isUserLockedOut(String id) {
-        UserOtpStatus status = userOtpStatusRepository.findByUserID(id)
-                .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
-        if (status.getLockTime() != null)
-            return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(MAX_LOCKOUT_TIME));
+  private boolean isUserLockedOut(String id) {
+    UserOtpStatus status = userOtpStatusRepository.findByUserID(id)
+      .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
+    if (status.getLockTime() != null)
+      return !status.getLockTime().isBefore(LocalDateTime.now().minusMinutes(MAX_LOCKOUT_TIME));
 
-        return true;
-    }
+    return true;
+  }
 
-    public String resendOtp(String userId) throws Exception {
-        UserOtpStatus status = userOtpStatusRepository.findByUserID(userId)
-                .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
-        User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("something went wrong, please try again"));
-        if (isUserLockedOut(userId)) {
-            if (user.getResendAttempts() < 5) {
-                String otp = generateAndSaveNewOtp(user);
-                var mailInfo = MailModel.builder()
-                        .to(user.getEmail())
-                        .username(user.getFullName())
-                        .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
-                        .activationCode(otp)
-                        .subject("Activate account ")
-                        .build();
-                emailService.sendMail(
-                        mailInfo, 587
-                );
-                user.setLastEmailSentTime(LocalDateTime.now());
-                user.setResendAttempts((byte) (user.getResendAttempts() + 1));
-                userRepository.save(user);
-                return "email sent to your registered email";
-            } else {
-                status.setLockTime(LocalDateTime.now().plusMinutes(2));
-                user.setResendAttempts((byte) 0);
-                userOtpStatusRepository.save(status);
-                userRepository.save(user);
-                return "Your account has been locked due to multiple failed attempts. Please try again after " +
-                        status.getLockTime().getMinute() + " minutes";
-            }
-        }
-        return "Your account has been locked due to multiple failed attempts. Please try again after " +
-                status.getLockTime() + " minutes";
-    }
-
-    public EmailAuthResponse verifyEmail(String email) {
-
-        var user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new EntityNotFoundException("User not found. Please register first"));
-
-        if (!isUserLockedOut(user.getUserId())) {
-            System.err.println("Bug");
-            return buildResponse(email, HttpStatus.FORBIDDEN,
-                    "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
-        }
-
-        if (!user.isEnabled()) {
-            return buildResponse(email, HttpStatus.BAD_REQUEST,
-                    "This email address is not yet verified. Please verify your email before logging in.");
-        }
-        user.setEmailVerified(true);
+  public String resendOtp(String userId) throws Exception {
+    UserOtpStatus status = userOtpStatusRepository.findByUserID(userId)
+      .orElseThrow(() -> new EntityNotFoundException("user not found. Please register first"));
+    User user = userRepository.findById(userId).orElseThrow(() -> new EntityNotFoundException("something went wrong, please try again"));
+    if (isUserLockedOut(userId)) {
+      if (user.getResendAttempts() < 5) {
+        String otp = generateAndSaveNewOtp(user);
+        var mailInfo = MailModel.builder()
+          .to(user.getEmail())
+          .username(user.getFullName())
+          .templateName(EmailTemplateName.ACTIVATE_ACCOUNT)
+          .activationCode(otp)
+          .subject("Activate account ")
+          .build();
+        emailService.sendMail(
+          mailInfo, 587
+        );
+        user.setLastEmailSentTime(LocalDateTime.now());
+        user.setResendAttempts((byte) (user.getResendAttempts() + 1));
         userRepository.save(user);
-        return buildResponse(email, HttpStatus.OK,
-                "Email verified successfully. Now enter your password.");
-    }
-
-    private EmailAuthResponse buildResponse(String email, HttpStatus status, String message) {
-        return EmailAuthResponse.builder()
-                .email(email)
-                .message(message)
-                .status(status)
-                .build();
-    }
-
-
-    public Object authenticate(@NotNull AuthenticationRequest request) throws Exception {
-
-        var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new EntityNotFoundException("user not found"));
-
-        if (!user.isEnabled()) {
-            return buildResponse(request.getEmail(), HttpStatus.BAD_REQUEST,
-                    "This account is not enabled, verify your email with otp");
-        }
-
-        if (!isUserLockedOut(user.getUserId())) {
-            return buildResponse(request.getEmail(), HttpStatus.FORBIDDEN,
-                    "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
-        }
-        if (!user.isEmailVerified()) {
-            return buildResponse(request.getEmail(), HttpStatus.UNAUTHORIZED,
-                    "verify your email before entering password");
-        }
-
-
-        CompletableFuture<Boolean> authFuture = CompletableFuture.supplyAsync(() -> {
-            authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
-            return true;
-        });
-        CompletableFuture<String> jwtFuture = CompletableFuture.supplyAsync(() -> {
-            var claims = new HashMap<String, Object>();
-            claims.put("fullName", user.getFullName());
-            claims.put("UserId", user.getUserId());
-            try {
-                return jwtService.generateToken(claims, user);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        });
-
-
-
-        CompletableFuture.allOf(authFuture, jwtFuture).join();
-        updateUserProfile(user);
-
-        return AuthenticationResponse.builder()
-                .status(HttpStatus.OK)
-                .message("Successfully logged in")
-                .token(jwtFuture.get())
-                .build();
-    }
-
-    @Async
-    public void updateUserProfile(User user) {
+        return "email sent to your registered email";
+      } else {
+        status.setLockTime(LocalDateTime.now().plusMinutes(2));
         user.setResendAttempts((byte) 0);
-        user.setFailedLoginAttempts((byte) 0);
-        user.setLastLogin(LocalDateTime.now());
+        userOtpStatusRepository.save(status);
         userRepository.save(user);
+        return "Your account has been locked due to multiple failed attempts. Please try again after " +
+          status.getLockTime().getMinute() + " minutes";
+      }
     }
+    return "Your account has been locked due to multiple failed attempts. Please try again after " +
+      status.getLockTime() + " minutes";
+  }
+
+  public EmailAuthResponse verifyEmail(String email) {
+
+    var user = userRepository.findByEmail(email)
+      .orElseThrow(() -> new EntityNotFoundException("User not found. Please register first"));
+
+    if (!isUserLockedOut(user.getUserId())) {
+      System.err.println("Bug");
+      return buildResponse(email, HttpStatus.FORBIDDEN,
+        "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
+    }
+
+    if (!user.isEnabled()) {
+      return buildResponse(email, HttpStatus.BAD_REQUEST,
+        "This email address is not yet verified. Please verify your email before logging in.");
+    }
+    user.setEmailVerified(true);
+    userRepository.save(user);
+    return buildResponse(email, HttpStatus.OK,
+      "Email verified successfully. Now enter your password.");
+  }
+
+  private EmailAuthResponse buildResponse(String email, HttpStatus status, String message) {
+    return EmailAuthResponse.builder()
+      .email(email)
+      .message(message)
+      .status(status)
+      .build();
+  }
+
+
+  public Object authenticate(@NotNull AuthenticationRequest request) throws Exception {
+
+    var user = userRepository.findByEmail(request.getEmail())
+      .orElseThrow(() -> new EntityNotFoundException("user not found"));
+
+    if (!user.isEnabled()) {
+      return buildResponse(request.getEmail(), HttpStatus.BAD_REQUEST,
+        "This account is not enabled, verify your email with otp");
+    }
+
+    if (!isUserLockedOut(user.getUserId())) {
+      return buildResponse(request.getEmail(), HttpStatus.FORBIDDEN,
+        "Your account is locked due to multiple failed login attempts. Please reset your password or contact support.");
+    }
+    if (!user.isEmailVerified()) {
+      return buildResponse(request.getEmail(), HttpStatus.UNAUTHORIZED,
+        "verify your email before entering password");
+    }
+
+
+    CompletableFuture<Boolean> authFuture = CompletableFuture.supplyAsync(() -> {
+      authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
+      return true;
+    });
+    CompletableFuture<String> jwtFuture = CompletableFuture.supplyAsync(() -> {
+      var claims = new HashMap<String, Object>();
+      claims.put("fullName", user.getFullName());
+      claims.put("UserId", user.getUserId());
+      try {
+        return jwtService.generateToken(claims, user);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+
+
+    CompletableFuture.allOf(authFuture, jwtFuture).join();
+    updateUserProfile(user);
+
+    return AuthenticationResponse.builder()
+      .status(HttpStatus.OK)
+      .message("Successfully logged in")
+      .token(jwtFuture.get())
+      .build();
+  }
+
+  @Async
+  public void updateUserProfile(User user) {
+    user.setResendAttempts((byte) 0);
+    user.setFailedLoginAttempts((byte) 0);
+    user.setLastLogin(LocalDateTime.now());
+    userRepository.save(user);
+  }
 }

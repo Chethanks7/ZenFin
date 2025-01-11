@@ -35,17 +35,7 @@ public class AuthenticationController {
             @Valid
             RegistrationRequest registration
     ) throws Exception {
-        User user = service.register(registration);
-
-        var userResponse = UserResponseDTO.builder()
-                .fullName(user.getFullName())
-                .email(user.getEmail())
-                .userId(user.getUserId())
-                .build();
-        return ResponseEntity.ok(RegistrationResponse.builder()
-                .message("Registration successful! Please verify your email.")
-                .userRegistrationDTO(userResponse)
-                .build());
+        return ResponseEntity.ok(service.register(registration));
     }
 
     @GetMapping("verify-otp")

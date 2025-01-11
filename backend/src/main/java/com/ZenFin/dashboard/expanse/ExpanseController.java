@@ -46,12 +46,9 @@ public class ExpanseController {
     return ResponseEntity.status(res.getStatusCode()).body(res);
   }
 
-  @PostMapping("/submit-expense")
-  public ResponseEntity<String> submitExpense(
-    @RequestBody
-    ExpenseDTO request) {
-    System.out.println("body" + request);
-    return ResponseEntity.ok("" + request);
-  }
+ @DeleteMapping("/delete-expense-by-id")
+  public ResponseEntity<String> deleteExpenseById(@RequestParam String id){
+    return ResponseEntity.ok(expenseService.deleteExpenseById(id));
+ }
 
 }

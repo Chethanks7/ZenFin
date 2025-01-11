@@ -11,7 +11,7 @@ import lombok.*;
 public class RegistrationResponse {
 
    private String message;
-
+   private String iv;
    private UserResponseDTO userRegistrationDTO;
 
 }
