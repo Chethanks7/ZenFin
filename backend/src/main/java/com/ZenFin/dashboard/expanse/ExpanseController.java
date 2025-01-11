@@ -51,4 +51,15 @@ public class ExpanseController {
     return ResponseEntity.ok(expenseService.deleteExpenseById(id));
  }
 
+ @GetMapping("/get-expenses-by-categories")
+  public ResponseEntity<?> getExpenseByCategories(
+   @RequestParam(name = "page", defaultValue = "0", required = false) int page,
+   @RequestParam(name = "size", defaultValue = "10", required = false) int size,
+   @RequestParam String category,
+   Authentication connectedUser
+ ){
+   ApiResponse<?> res = expenseService.getExpenseByCategories(page, size, connectedUser,category);
+   return ResponseEntity.status(res.getStatusCode()).body(res);
+ }
+
 }

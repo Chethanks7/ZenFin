@@ -4,7 +4,6 @@ import com.ZenFin.dashboard.api.ApiResponse;
 import com.ZenFin.user.User;
 import com.ZenFin.user.UserRepository;
 import jakarta.persistence.EntityManager;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -16,7 +15,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
-import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -48,7 +47,7 @@ public class ExpenseService {
     return ExpenseResponse.builder()
       .amount(expense.getAmount())
       .id(expenseData.getId())
-      .category(expense.getCategory())
+      .category(expense.getCategory().toLowerCase())
       .date(expense.getDate())
       .userId(user.getUserId())
       .build();
@@ -106,6 +105,38 @@ public class ExpenseService {
     expanseRepository.delete(expanse);
     return "expense has been deleted successfully";
 
+  }
+
+  public ApiResponse<?> getExpenseByCategories(int page, int size, Authentication connectedUser, String category) {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    var userId  = ((User) auth.getPrincipal()).getUserId() ;
+
+    ApiResponse<PageResponse<ExpenseResponse>> body =  new ApiResponse<>();
+    Pageable pageable =  PageRequest.of(page,size,Sort.by("date").descending());
+    Page<Expense> expenses = expanseRepository.findExpanseByCategory(pageable,userId,category.toLowerCase());
+
+    List<ExpenseResponse> categoryExpenses = expenses.stream()
+      .map(expanseMapper::toExpenseResponse)
+      .toList();
+
+    if(categoryExpenses.isEmpty()) {
+      return ApiResponse.builder()
+        .message("no expenses found in this category")
+        .statusCode(HttpStatus.OK)
+        .data(null)
+        .build();
+    }
+
+    PageResponse<ExpenseResponse> expanses= new PageResponse<>();
+    expanses.setContents(categoryExpenses);
+    expanses.setSize(size);
+    expanses.setPage(page);
+    expanses.setStatus(HttpStatus.OK);
+    body.setData(expanses);
+    body.setMessage("All expenses of category :"+category);
+    body.setStatusCode(HttpStatus.OK);
+
+    return body ;
 
   }
 }
