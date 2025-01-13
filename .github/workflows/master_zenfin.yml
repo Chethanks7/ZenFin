@@ -51,4 +51,4 @@ jobs:
           app-name: 'ZenFin'
           slot-name: 'Production'
           package: '*.jar'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_24909412B5444553850BB6446F34A48F }}
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_96D992BBFF2F4F7A8818147D796C428F }}
