@@ -1,5 +1,6 @@
 package com.ZenFin.dashboard.expanse;
 
+import com.ZenFin.dashboard.pdfService.PdfExpanseData;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -35,6 +36,15 @@ public class ExpanseMapper {
       .category(expense.getCategory())
       .date(String.valueOf(expense.getDate()))
       .userId(expense.getUser().getUserId())
+      .build();
+  }
+
+  public PdfExpanseData toPdfExpenseData(Expense expense){
+    return PdfExpanseData.builder()
+      .date(expense.getDate().toString())
+      .amount(expense.getAmount())
+      .category(expense.getCategory())
+      .description(expense.getDescription())
       .build();
   }
 }

@@ -1,10 +1,9 @@
 package com.ZenFin.dashboard.expanse;
 
 import com.ZenFin.dashboard.api.ApiResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import lombok.AllArgsConstructor;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -68,6 +67,14 @@ public class ExpanseController {
  ){
    assert expenseService != null;
    return ResponseEntity.ok(expenseService.getMonthlyExpenseSummery(userId,year, month,page,size));
+ }
+
+ @GetMapping("/expense-pdf-export")
+  public void exportPdfExport(
+    @RequestParam String userId,
+    HttpServletResponse response
+ ) throws Exception {
+    expenseService.exportPdfExport(userId,response);
  }
 
 }
