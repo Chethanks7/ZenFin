@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -208,4 +209,10 @@ public class ExpenseService {
     return userRepository.findUserExpensesByUserId(userId);
   }
 
+  public List<TopThreeExpenseDTO> fetchTopThreeExpense(String userId) {
+    if(userRepository.findUserExpensesByUserId(userId)==null)
+      throw new IllegalStateException("No expenses are present");
+    return expanseRepository.fetchTopThreeExpenseByUserId(userId).stream()
+      .limit(3).collect(Collectors.toList());
+  }
 }

@@ -1,5 +1,6 @@
 package com.ZenFin.handler;
 
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.mail.MessagingException;
 import jakarta.persistence.EntityNotFoundException;
 import org.jetbrains.annotations.NotNull;
@@ -120,6 +121,18 @@ public class GlobalExceptionHandler {
                                 .build()
                 );
     }
+
+  @ExceptionHandler(ExpiredJwtException.class)
+  public ResponseEntity<ExceptionResponse> handleException(@NotNull ExpiredJwtException ex) {
+    return ResponseEntity.status(UNAUTHORIZED)
+      .body(
+        ExceptionResponse.builder()
+          .businessErrorDescription("UNAUTHORIZED")
+          .error(ex.getMessage())
+          .build()
+      );
+
+  }
 
     @ExceptionHandler(SQLException.class)
     public ResponseEntity<ExceptionResponse> handleException(@NotNull SQLException ex) {

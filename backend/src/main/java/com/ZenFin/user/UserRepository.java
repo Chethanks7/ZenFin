@@ -1,6 +1,7 @@
 package com.ZenFin.user;
 
 import com.ZenFin.dashboard.expanse.Expense;
+import com.ZenFin.dashboard.expanse.TopThreeExpenseDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -21,5 +22,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     "FROM User u " +
     "WHERE u.userId = :userId ")
   List<Expense> findUserExpensesByUserId(String userId);
+
+
+
 }
 

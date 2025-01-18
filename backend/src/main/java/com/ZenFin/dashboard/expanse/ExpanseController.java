@@ -9,6 +9,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @CrossOrigin("*")
 @PreAuthorize("hasRole('USER')")
@@ -76,5 +78,14 @@ public class ExpanseController {
  ) throws Exception {
     expenseService.exportPdfExport(userId,response);
  }
+
+ @GetMapping("get-top-three-expense")
+  public ResponseEntity<List<TopThreeExpenseDTO>> topThreeExpense(@RequestParam String userId){
+    return ResponseEntity.ok(expenseService.fetchTopThreeExpense(userId));
+
+ }
+
+
+
 
 }

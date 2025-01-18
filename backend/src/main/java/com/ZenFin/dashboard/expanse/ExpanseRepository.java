@@ -49,4 +49,17 @@ public interface ExpanseRepository extends JpaRepository<Expense, String> {
     @Param("month") Integer month,
     @Param("year") Integer year);
 
+  @Query("""
+    SELECT new com.ZenFin.dashboard.expanse.TopThreeExpenseDTO(
+        e.category,
+        SUM(e.amount),
+        (SUM(e.amount) * 100.0 / (SELECT SUM(e2.amount) FROM Expense e2 WHERE e2.user.id = :userId))
+    )
+    FROM Expense e
+    WHERE e.user.id = :userId
+    GROUP BY e.category
+    ORDER BY SUM(e.amount) DESC
+""")
+  List<TopThreeExpenseDTO> fetchTopThreeExpenseByUserId(@Param("userId") String userId);
+
 }
