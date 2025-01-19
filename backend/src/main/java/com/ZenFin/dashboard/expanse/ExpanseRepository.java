@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 
 public interface ExpanseRepository extends JpaRepository<Expense, String> {
@@ -62,4 +63,18 @@ public interface ExpanseRepository extends JpaRepository<Expense, String> {
 """)
   List<TopThreeExpenseDTO> fetchTopThreeExpenseByUserId(@Param("userId") String userId);
 
+
+
+  @Query("""
+    SELECT amount,date\s
+    From Expenses\s
+    WHERE user_id = :userId
+    BETWEEN :startDate AND :endDate
+   \s""")
+  List<Expense> findWeekExpensesByUserId(
+    @Param("userId") String userId,
+    Pageable pageable,
+    @Param("startDate") LocalDate queryStartDate,
+    @Param("endDate")LocalDate queryEndDate
+  );
 }

@@ -79,10 +79,21 @@ public class ExpanseController {
     expenseService.exportPdfExport(userId,response);
  }
 
- @GetMapping("get-top-three-expense")
+ @GetMapping("/get-top-three-expense")
   public ResponseEntity<List<TopThreeExpenseDTO>> topThreeExpense(@RequestParam String userId){
     return ResponseEntity.ok(expenseService.fetchTopThreeExpense(userId));
+ }
 
+ @GetMapping("/weekly-trends")
+  public ResponseEntity<ApiResponse<WeeklyTrends>> weeklyTrends(
+    @RequestParam String userId,
+    @RequestParam(name = "start-date", required = false) String startDate,
+    @RequestParam(name = "end-date", required = false) String endDate,
+    @RequestParam(name = "page", defaultValue = "0", required = false) int page,
+  @RequestParam(name = "size", defaultValue = "10", required = false) int size
+ ){
+
+    return ResponseEntity.ok(expenseService.fetchWeeklyTrends(userId,startDate,endDate,page,size));
  }
 
 

@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Month;
+import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -214,5 +215,34 @@ public class ExpenseService {
       throw new IllegalStateException("No expenses are present");
     return expanseRepository.fetchTopThreeExpenseByUserId(userId).stream()
       .limit(3).collect(Collectors.toList());
+  }
+
+  public ApiResponse<WeeklyTrends> fetchWeeklyTrends(
+    String userId,
+    String startDate,
+    String endDate,
+    int page,
+    int size
+  ) {
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+    LocalDate queryEndDate ;
+    LocalDate queryStartDate ;
+    if(endDate == null){
+      queryEndDate = LocalDate.now();
+    }
+    if(startDate == null){
+      queryStartDate = LocalDate.now().minusDays(7);
+    }
+    assert endDate != null;
+    queryEndDate = LocalDate.parse(endDate, formatter);
+    assert startDate != null;
+    queryStartDate = LocalDate.parse(startDate, formatter);
+    Pageable pageable = PageRequest.of(page, size, Sort.by("date").descending());
+
+    List<WeeklyExpanseTrend> weeklyExpanseTrends = expanseRepository.findWeekExpensesByUserId(userId,pageable,queryStartDate,queryEndDate)
+      .stream()
+      .map(expense -> expanseMapper.toWeeklyExpenseTrend(expense))
+      .collect(Collectors.toList());
+
   }
 }
